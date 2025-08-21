@@ -21,7 +21,7 @@ interface ClaimRequest {
   memberEmail: string;
   email: string;
   submissionDate: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'reviewing' | 'approved' | 'rejected';
   reason?: string;
   flightInfo?: string;
   flightDetails?: FlightDetails;

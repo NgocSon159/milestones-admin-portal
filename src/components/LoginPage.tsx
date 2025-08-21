@@ -14,23 +14,33 @@ export function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!credentials.username || !credentials.password) {
       toast.error('Please fill in all fields');
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
+      const response = await fetch('https://mileswise-be.onrender.com/api/auth/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: credentials.username, password: credentials.password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
         login();
-        toast.success('Login successful');
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
+        toast.success(data.message || 'Login successful');
       } else {
-        toast.error('Invalid credentials');
+        toast.error(data.message || 'Invalid credentials');
       }
     } catch (error) {
       toast.error('Login failed');
@@ -97,7 +107,7 @@ export function LoginPage() {
               </div>
 
               {/* Login Button */}
-              <Button 
+              <Button
                 type="submit"
                 disabled={isLoading}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
@@ -111,8 +121,8 @@ export function LoginPage() {
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="text-sm text-blue-900 font-medium mb-2">Demo Credentials:</div>
               <div className="text-sm text-blue-700 space-y-1">
-                <div>Username: <code className="bg-blue-100 px-1 rounded">admin</code></div>
-                <div>Password: <code className="bg-blue-100 px-1 rounded">admin123</code></div>
+                <div>Username: <code className="bg-blue-100 px-1 rounded">admin@example.com</code></div>
+                <div>Password: <code className="bg-blue-100 px-1 rounded">adminpassword</code></div>
               </div>
             </div>
 
