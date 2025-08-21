@@ -34,9 +34,8 @@ export function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        login();
         if (data.token) {
-          localStorage.setItem('token', data.token);
+          login(data.token);
         }
         toast.success(data.message || 'Login successful');
       } else {

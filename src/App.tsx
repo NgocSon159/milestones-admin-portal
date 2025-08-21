@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { AppProvider, useAppContext } from './contexts/AppContext';
 import { LoginPage } from './components/LoginPage';
 import { AppLayout } from './components/AppLayout';
@@ -22,6 +23,21 @@ interface RouteParams {
 function AppContent() {
   const { isAuthenticated } = useAppContext();
   const [currentRoute, setCurrentRoute] = useState<RouteParams>({ page: 'dashboard' });
+
+  // Load route from localStorage on initial render if authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const savedRoute = localStorage.getItem('lastVisitedRoute');
+      if (savedRoute) {
+        setCurrentRoute(JSON.parse(savedRoute));
+      }
+    }
+  }, [isAuthenticated]);
+
+  // Save route to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('lastVisitedRoute', JSON.stringify(currentRoute));
+  }, [currentRoute]);
 
   if (!isAuthenticated) {
     return <LoginPage />;

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useEffect } from 'react';
 
 interface FlightDetails {
   flightNumber: string;
@@ -88,7 +89,7 @@ interface TierConfig {
 interface AppContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
-  login: () => void;
+  login: (token: string) => void;
   logout: () => void;
   claimRequests: ClaimRequest[];
   setClaimRequests: (requests: ClaimRequest[]) => void;
@@ -109,13 +110,17 @@ interface AppContextType {
   updateTier: (id: string, updates: Partial<TierConfig>) => void;
   deleteTier: (id: string) => void;
   updateMemberTier: (memberId: string, newTier: string, miles: number) => void;
-  checkAndAssignRewards: (memberId: string, newMiles: number) => void;
+  checkAndAssignRewards: (memberId: string, newMiles: number, newAwardMiles?: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = localStorage.getItem('token');
+    return !!token;
+  });
+
   const [claimRequests, setClaimRequests] = useState<ClaimRequest[]>([
     {
       id: '1',
@@ -530,11 +535,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = () => {
+  const login = (token: string) => {
+    localStorage.setItem('token', token);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
   };
 
