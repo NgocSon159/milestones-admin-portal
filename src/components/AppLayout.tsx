@@ -5,7 +5,6 @@ import {
   LayoutDashboard, 
   FileText, 
   PlusCircle, 
-  History, 
   Users, 
   LogOut,
   Menu,
@@ -28,7 +27,6 @@ const navigation = [
   { id: 'manual-request', name: 'Manual Request', icon: PlusCircle },
   { id: 'rewards', name: 'Rewards', icon: Gift },
   { id: 'tier-config', name: 'Config Tier', icon: Settings },
-  { id: 'history', name: 'History Log', icon: History },
   { id: 'members', name: 'Member Management', icon: Users },
 ];
 

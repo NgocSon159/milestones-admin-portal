@@ -975,10 +975,6 @@
     max-height: calc(var(--spacing) * 32);
   }
 
-  .max-h-48 {
-    max-height: calc(var(--spacing) * 48);
-  }
-
   .max-h-\[90vh\] {
     max-height: 90vh;
   }
@@ -1295,10 +1291,6 @@
 
   .cursor-default {
     cursor: default;
-  }
-
-  .cursor-pointer {
-    cursor: pointer;
   }
 
   .touch-none {

@@ -136,7 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         distance: 2735,
         baseQualifyingMiles: 3282,
         classMultiplier: 1.3,
-        bonusMiles: 985,
+        bonusMiles: 4267,
         qualifyingMiles: 3282,
         totalMiles: 4267
       },
@@ -161,7 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         distance: 3245,
         baseQualifyingMiles: 3894,
         classMultiplier: 1.5,
-        bonusMiles: 1947,
+        bonusMiles: 5841,
         qualifyingMiles: 3894,
         totalMiles: 5841
       },
@@ -186,7 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         distance: 4420,
         baseQualifyingMiles: 4420,
         classMultiplier: 1.0,
-        bonusMiles: 0,
+        bonusMiles: 4420,
         qualifyingMiles: 4420,
         totalMiles: 4420
       },
@@ -211,7 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         distance: 6765,
         baseQualifyingMiles: 8118,
         classMultiplier: 1.3,
-        bonusMiles: 2435,
+        bonusMiles: 10553,
         qualifyingMiles: 8118,
         totalMiles: 10553
       },
@@ -237,7 +237,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         distance: 753,
         baseQualifyingMiles: 753,
         classMultiplier: 1.0,
-        bonusMiles: 0,
+        bonusMiles: 753,
         qualifyingMiles: 753,
         totalMiles: 753
       },

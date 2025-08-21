@@ -9,7 +9,7 @@ import { RewardManagement } from './components/RewardManagement';
 import { CreateReward } from './components/CreateReward';
 import { EditReward } from './components/EditReward';
 import { TierConfig } from './components/TierConfig';
-import { HistoryLog } from './components/HistoryLog';
+
 import { MemberManagement } from './components/MemberManagement';
 import { Toaster } from './components/ui/sonner';
 
@@ -51,8 +51,6 @@ function AppContent() {
         }
       case 'tier-config':
         return <TierConfig />;
-      case 'history':
-        return <HistoryLog />;
       case 'members':
         return <MemberManagement />;
       default:

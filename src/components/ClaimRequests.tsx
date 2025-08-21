@@ -305,7 +305,6 @@ export function ClaimRequests() {
                         onClick={handleApprove}
                         className="flex-1 bg-green-600 hover:bg-green-700"
                       >
-                        <span className="mr-2">✅</span>
                         Approve Request
                       </Button>
                       <Button 

@@ -17,11 +17,7 @@ import {
   Crown, 
   Award,
   Users,
-  TrendingUp,
-  Star,
-  Check,
-  Gift,
-  Eye
+  TrendingUp
 } from 'lucide-react';
 import { toast } from "sonner";
 
@@ -32,7 +28,6 @@ interface TierFormData {
   milesRequired: number;
   description: string;
   benefits: string[];
-  autoRewards: string[];
 }
 
 const tierColors = [
@@ -45,7 +40,7 @@ const tierColors = [
 ];
 
 export function TierConfig() {
-  const { tiers, rewards, addTier, updateTier, deleteTier, addHistoryLog } = useAppContext();
+  const { tiers, addTier, updateTier, deleteTier, addHistoryLog } = useAppContext();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -58,8 +53,7 @@ export function TierConfig() {
     color: 'bg-gray-100 text-gray-800',
     milesRequired: 0,
     description: '',
-    benefits: [],
-    autoRewards: []
+    benefits: []
   });
 
   const resetForm = () => {
@@ -69,8 +63,7 @@ export function TierConfig() {
       color: 'bg-gray-100 text-gray-800',
       milesRequired: 0,
       description: '',
-      benefits: [],
-      autoRewards: []
+      benefits: []
     });
     setEditingTier(null);
     setNewBenefit('');
@@ -116,7 +109,8 @@ export function TierConfig() {
         updateTier(editingTier, {
           ...formData,
           name: formData.name.toLowerCase(),
-          status: 'active'
+          status: 'active',
+          autoRewards: []
         });
         addHistoryLog({
           adminName: 'Admin User',
@@ -127,7 +121,8 @@ export function TierConfig() {
         addTier({
           ...formData,
           name: formData.name.toLowerCase(),
-          status: 'active'
+          status: 'active',
+          autoRewards: []
         });
         addHistoryLog({
           adminName: 'Admin User',
@@ -152,8 +147,7 @@ export function TierConfig() {
       color: tier.color,
       milesRequired: tier.milesRequired,
       description: tier.description,
-      benefits: tier.benefits,
-      autoRewards: tier.autoRewards
+      benefits: tier.benefits
     });
     setEditingTier(tier.id);
     setIsDialogOpen(true);
@@ -194,8 +188,6 @@ export function TierConfig() {
     return colorConfig?.preview || 'bg-gray-200';
   };
 
-  const activeRewards = rewards.filter(r => r.status === 'active');
-
   // Statistics
   const stats = {
     totalTiers: tiers.length,
@@ -218,7 +210,7 @@ export function TierConfig() {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Tier Configuration</h1>
-              <p className="text-gray-600">Define membership tiers and their requirements for automatic reward assignment</p>
+              <p className="text-gray-600">Define membership tiers and their requirements</p>
             </div>
           </div>
           
@@ -336,42 +328,6 @@ export function TierConfig() {
                       ))}
                     </div>
                   )}
-                </div>
-
-                <div className="space-y-3">
-                  <Label>Auto-Assign Rewards</Label>
-                  <div className="space-y-2 max-h-48 overflow-y-auto border rounded p-3">
-                    {activeRewards.map(reward => (
-                      <div key={reward.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`reward-${reward.id}`}
-                          checked={formData.autoRewards.includes(reward.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              handleInputChange('autoRewards', [...formData.autoRewards, reward.id]);
-                            } else {
-                              handleInputChange('autoRewards', formData.autoRewards.filter(id => id !== reward.id));
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <label htmlFor={`reward-${reward.id}`} className="text-sm flex-1 cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <span>{reward.name}</span>
-                            <Badge className="bg-blue-100 text-blue-800 text-xs">
-                              {reward.type.charAt(0).toUpperCase() + reward.type.slice(1)}
-                            </Badge>
-                          </div>
-                        </label>
-                      </div>
-                    ))}
-                    {activeRewards.length === 0 && (
-                      <p className="text-gray-500 text-sm text-center py-4">
-                        No active rewards available
-                      </p>
-                    )}
-                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
@@ -503,7 +459,6 @@ export function TierConfig() {
                       <div className="flex items-center space-x-4">
                         <span>Members: <strong>{tier.memberCount}</strong></span>
                         <span>Benefits: <strong>{tier.benefits.length}</strong></span>
-                        <span>Auto Rewards: <strong>{tier.autoRewards.length}</strong></span>
                       </div>
                     </div>
                     {tier.benefits.length > 0 && (
