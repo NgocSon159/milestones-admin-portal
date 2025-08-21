@@ -1,5 +1,19 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
+interface FlightDetails {
+  flightNumber: string;
+  route: string;
+  origin: string;
+  destination: string;
+  class: string;
+  distance: number;
+  baseQualifyingMiles: number;
+  classMultiplier: number;
+  bonusMiles: number;
+  qualifyingMiles: number;
+  totalMiles: number;
+}
+
 interface ClaimRequest {
   id: string;
   claimNumber: string;
@@ -10,6 +24,7 @@ interface ClaimRequest {
   status: 'pending' | 'approved' | 'rejected';
   reason?: string;
   flightInfo?: string;
+  flightDetails?: FlightDetails;
   attachments?: string[];
   miles?: number;
   rejectionReason?: string;
@@ -20,7 +35,8 @@ interface Member {
   name: string;
   email: string;
   tier: string;
-  totalMiles: number;
+  totalQualifyingMiles: number;
+  totalAwardMiles: number;
   status: 'active' | 'inactive';
 }
 
@@ -38,7 +54,7 @@ interface Reward {
   type: 'voucher' | 'cashback' | 'gift' | 'discount';
   value: number;
   description: string;
-  pointsRequired: number;
+  milesRequired: number;
   validityStart: string;
   validityEnd: string;
   conditions: string;
@@ -47,9 +63,8 @@ interface Reward {
   usageCount: number;
   maxUsage?: number;
   tier: 'silver' | 'gold' | 'platinum' | 'diamond';
-  icon: string;
-  maxRewardsPerMonth?: number;
-  tierBonus?: number;
+  // Support for legacy data
+  pointsRequired?: number;
 }
 
 interface TierConfig {
@@ -111,8 +126,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       submissionDate: 'Jan 15, 2025',
       status: 'pending',
       reason: 'Flight delay compensation',
-      flightInfo: 'VN123 - HAN to SGN',
-      miles: 2500
+      flightInfo: 'VN904 - HAN to KUL',
+      flightDetails: {
+        flightNumber: 'VN904',
+        route: 'HAN - Hanoi → KUL - Kuala Lumpur',
+        origin: 'HAN',
+        destination: 'KUL',
+        class: 'Premium Economy',
+        distance: 2735,
+        baseQualifyingMiles: 3282,
+        classMultiplier: 1.3,
+        bonusMiles: 985,
+        qualifyingMiles: 3282,
+        totalMiles: 4267
+      },
+      miles: 4267
     },
     {
       id: '2',
@@ -124,7 +152,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'approved',
       reason: 'Missing miles credit',
       flightInfo: 'QR456 - SGN to DOH',
-      miles: 5000
+      flightDetails: {
+        flightNumber: 'QR456',
+        route: 'SGN - Ho Chi Minh → DOH - Doha',
+        origin: 'SGN',
+        destination: 'DOH',
+        class: 'Business',
+        distance: 3245,
+        baseQualifyingMiles: 3894,
+        classMultiplier: 1.5,
+        bonusMiles: 1947,
+        qualifyingMiles: 3894,
+        totalMiles: 5841
+      },
+      miles: 5841
     },
     {
       id: '3',
@@ -136,7 +177,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'pending',
       reason: 'Upgrade miles credit',
       flightInfo: 'EK789 - HAN to DXB',
-      miles: 1500
+      flightDetails: {
+        flightNumber: 'EK789',
+        route: 'HAN - Hanoi → DXB - Dubai',
+        origin: 'HAN',
+        destination: 'DXB',
+        class: 'Economy',
+        distance: 4420,
+        baseQualifyingMiles: 4420,
+        classMultiplier: 1.0,
+        bonusMiles: 0,
+        qualifyingMiles: 4420,
+        totalMiles: 4420
+      },
+      miles: 4420
     },
     {
       id: '4',
@@ -148,7 +202,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'rejected',
       reason: 'Duplicate miles request',
       flightInfo: 'BA202 - SGN to LHR',
-      miles: 3200,
+      flightDetails: {
+        flightNumber: 'BA202',
+        route: 'SGN - Ho Chi Minh → LHR - London Heathrow',
+        origin: 'SGN',
+        destination: 'LHR',
+        class: 'Premium Economy',
+        distance: 6765,
+        baseQualifyingMiles: 8118,
+        classMultiplier: 1.3,
+        bonusMiles: 2435,
+        qualifyingMiles: 8118,
+        totalMiles: 10553
+      },
+      miles: 10553,
       rejectionReason: 'Miles already credited for this flight'
     },
     {
@@ -161,7 +228,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'approved',
       reason: 'Missing partner airline miles',
       flightInfo: 'SQ101 - SGN to SIN',
-      miles: 1800
+      flightDetails: {
+        flightNumber: 'SQ101',
+        route: 'SGN - Ho Chi Minh → SIN - Singapore',
+        origin: 'SGN',
+        destination: 'SIN',
+        class: 'Economy',
+        distance: 753,
+        baseQualifyingMiles: 753,
+        classMultiplier: 1.0,
+        bonusMiles: 0,
+        qualifyingMiles: 753,
+        totalMiles: 753
+      },
+      miles: 753
     }
   ]);
 
@@ -237,10 +317,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ]);
 
   const [members, setMembers] = useState<Member[]>([
-    { id: 'M001', name: 'John Smith', email: 'john.smith@email.com', tier: 'gold', totalMiles: 45000, status: 'active' },
-    { id: 'M002', name: 'Sarah Johnson', email: 'sarah.j@email.com', tier: 'platinum', totalMiles: 82000, status: 'active' },
-    { id: 'M003', name: 'Mike Davis', email: 'mike.davis@email.com', tier: 'silver', totalMiles: 28000, status: 'active' },
-    { id: 'M004', name: 'Lisa Chen', email: 'lisa.chen@email.com', tier: 'bronze', totalMiles: 15000, status: 'inactive' }
+    { id: 'M001', name: 'John Smith', email: 'john.smith@email.com', tier: 'gold', totalQualifyingMiles: 45000, totalAwardMiles: 68000, status: 'active' },
+    { id: 'M002', name: 'Sarah Johnson', email: 'sarah.j@email.com', tier: 'platinum', totalQualifyingMiles: 120000, totalAwardMiles: 82000, status: 'active' },
+    { id: 'M003', name: 'Mike Davis', email: 'mike.davis@email.com', tier: 'silver', totalQualifyingMiles: 28000, totalAwardMiles: 35000, status: 'active' },
+    { id: 'M004', name: 'Lisa Chen', email: 'lisa.chen@email.com', tier: 'bronze', totalQualifyingMiles: 8000, totalAwardMiles: 15000, status: 'inactive' }
   ]);
 
   const [historyLogs, setHistoryLogs] = useState<HistoryLog[]>([
@@ -256,7 +336,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'voucher',
       value: 50,
       description: '$50 flight discount voucher for Silver members',
-      pointsRequired: 10000,
+      milesRequired: 10000,
       validityStart: '2025-01-01',
       validityEnd: '2025-12-31',
       conditions: 'Valid for domestic flights only. Cannot be combined with other offers.',
@@ -264,10 +344,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdDate: '2025-01-10',
       usageCount: 25,
       maxUsage: 100,
-      tier: 'silver',
-      icon: 'Plane',
-      maxRewardsPerMonth: 2,
-      tierBonus: 10
+      tier: 'silver'
     },
     {
       id: 'R002',
@@ -275,7 +352,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'gift',
       value: 1,
       description: 'Complimentary airport lounge access for Gold members',
-      pointsRequired: 15000,
+      milesRequired: 15000,
       validityStart: '2025-01-01',
       validityEnd: '2025-06-30',
       conditions: 'Valid at selected partner lounges. Must present digital voucher.',
@@ -283,10 +360,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdDate: '2025-01-08',
       usageCount: 12,
       maxUsage: 50,
-      tier: 'gold',
-      icon: 'Crown',
-      maxRewardsPerMonth: 3,
-      tierBonus: 25
+      tier: 'gold'
     },
     {
       id: 'R003',
@@ -294,7 +368,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'cashback',
       value: 100,
       description: '$100 cashback for Platinum members',
-      pointsRequired: 25000,
+      milesRequired: 25000,
       validityStart: '2025-02-01',
       validityEnd: '2025-12-31',
       conditions: 'Minimum purchase of $500 required. Cashback processed within 7 days.',
@@ -302,10 +376,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdDate: '2025-01-05',
       usageCount: 8,
       maxUsage: 30,
-      tier: 'platinum',
-      icon: 'DollarSign',
-      maxRewardsPerMonth: 5,
-      tierBonus: 50
+      tier: 'platinum'
     },
     {
       id: 'R004',
@@ -313,7 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'gift',
       value: 500,
       description: 'Exclusive Diamond member luxury package',
-      pointsRequired: 50000,
+      milesRequired: 50000,
       validityStart: '2025-03-01',
       validityEnd: '2025-12-31',
       conditions: 'Limited time exclusive offer for Diamond tier members only.',
@@ -321,10 +392,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdDate: '2025-01-03',
       usageCount: 0,
       maxUsage: 10,
-      tier: 'diamond',
-      icon: 'Gem',
-      maxRewardsPerMonth: 10,
-      tierBonus: 100
+      tier: 'diamond'
     },
     {
       id: 'R005',
@@ -332,7 +400,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'discount',
       value: 20,
       description: '20% discount on selected partner stores',
-      pointsRequired: 12000,
+      milesRequired: 12000,
       validityStart: '2025-01-15',
       validityEnd: '2025-06-15',
       conditions: 'Valid at participating retailers. See terms for details.',
@@ -340,10 +408,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdDate: '2025-01-15',
       usageCount: 18,
       maxUsage: 200,
-      tier: 'gold',
-      icon: 'ShoppingBag',
-      maxRewardsPerMonth: 4,
-      tierBonus: 25
+      tier: 'gold'
     }
   ]);
 
@@ -415,30 +480,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTiers(prev => prev.filter(tier => tier.id !== id));
   };
 
-  const updateMemberTier = (memberId: string, newTier: string, miles: number) => {
+  const updateMemberTier = (memberId: string, newTier: string, qualifyingMiles: number, awardMiles?: number) => {
     setMembers(prev =>
       prev.map(member =>
         member.id === memberId
-          ? { ...member, tier: newTier, totalMiles: miles }
+          ? { 
+              ...member, 
+              tier: newTier, 
+              totalQualifyingMiles: qualifyingMiles,
+              totalAwardMiles: awardMiles !== undefined ? awardMiles : member.totalAwardMiles
+            }
           : member
       )
     );
   };
 
-  const checkAndAssignRewards = (memberId: string, newMiles: number) => {
+  const checkAndAssignRewards = (memberId: string, newQualifyingMiles: number, newAwardMiles?: number) => {
     const member = members.find(m => m.id === memberId);
     if (!member) return;
 
-    // Determine new tier based on miles
+    // Determine new tier based on qualifying miles
     const sortedTiers = [...tiers]
       .filter(t => t.status === 'active')
       .sort((a, b) => b.milesRequired - a.milesRequired);
 
-    const newTier = sortedTiers.find(tier => newMiles >= tier.milesRequired);
+    const newTier = sortedTiers.find(tier => newQualifyingMiles >= tier.milesRequired);
     
     if (newTier && newTier.name !== member.tier) {
       // Update member tier
-      updateMemberTier(memberId, newTier.name, newMiles);
+      updateMemberTier(memberId, newTier.name, newQualifyingMiles, newAwardMiles);
 
       // Auto-assign rewards for this tier
       const autoRewards = rewards.filter(reward => 
@@ -455,7 +525,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       addHistoryLog({
         adminName: 'System Auto-Tier',
-        action: `${member.name} automatically upgraded to ${newTier.displayName} tier (${newMiles.toLocaleString()} miles)`
+        action: `${member.name} automatically upgraded to ${newTier.displayName} tier (${newQualifyingMiles.toLocaleString()} qualifying miles)`
       });
     }
   };

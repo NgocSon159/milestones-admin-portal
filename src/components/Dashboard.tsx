@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useAppContext } from '../contexts/AppContext';
 import { FileText, CheckCircle, XCircle, Clock, Users, Calendar, TrendingUp, Eye } from 'lucide-react';
-import { toast } from "sonner";
+import { toast } from 'sonner@2.0.3';
 
 export function Dashboard() {
   const { claimRequests, members, updateClaimRequest, addHistoryLog } = useAppContext();

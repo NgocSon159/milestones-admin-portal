@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { useAppContext } from '../contexts/AppContext';
-import { toast } from "sonner";
+import { toast } from 'sonner@2.0.3';
 import { Plane, User, Mail, Calendar, CreditCard, LogIn, UserPlus, Info } from 'lucide-react';
 
 // Mock flight database
@@ -138,26 +138,31 @@ export function ManualEntry() {
       const member = members.find(m => m.email.toLowerCase() === formData.memberEmail.toLowerCase());
       
       if (member) {
-        const newTotalMiles = member.totalMiles + formData.miles;
+        const newQualifyingMiles = member.totalQualifyingMiles + formData.miles;
+        const newAwardMiles = member.totalAwardMiles + formData.miles;
         
         // Update member miles
         setMembers(prev =>
           prev.map(m =>
             m.id === member.id
-              ? { ...m, totalMiles: newTotalMiles }
+              ? { 
+                  ...m, 
+                  totalQualifyingMiles: newQualifyingMiles,
+                  totalAwardMiles: newAwardMiles
+                }
               : m
           )
         );
 
         // Check for tier upgrades and auto-assign rewards
-        checkAndAssignRewards(member.id, newTotalMiles);
+        checkAndAssignRewards(member.id, newQualifyingMiles, newAwardMiles);
 
         addHistoryLog({
           adminName: 'Admin User',
-          action: `Added ${formData.miles} miles for member ${formData.memberEmail} (Flight: ${formData.flightNumberId}) - Total: ${newTotalMiles.toLocaleString()}`
+          action: `Added ${formData.miles} miles for member ${formData.memberEmail} (Flight: ${formData.flightNumberId}) - Qualifying: ${newQualifyingMiles.toLocaleString()}, Award: ${newAwardMiles.toLocaleString()}`
         });
 
-        toast.success(`Successfully added ${formData.miles} miles for flight ${formData.flightNumberId}. New total: ${newTotalMiles.toLocaleString()} miles`);
+        toast.success(`Successfully added ${formData.miles} miles for flight ${formData.flightNumberId}. New qualifying: ${newQualifyingMiles.toLocaleString()}, award: ${newAwardMiles.toLocaleString()}`);
       } else {
         // Member not found - still log the transaction but show warning
         addHistoryLog({

@@ -14,7 +14,7 @@ import {
   Gift,
   Settings
 } from 'lucide-react';
-import { toast } from "sonner";
+import { toast } from 'sonner@2.0.3';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -25,7 +25,7 @@ interface AppLayoutProps {
 const navigation = [
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
   { id: 'claims', name: 'Claim Requests', icon: FileText },
-  { id: 'manual-entry', name: 'Manual Entry', icon: PlusCircle },
+  { id: 'manual-request', name: 'Manual Request', icon: PlusCircle },
   { id: 'rewards', name: 'Rewards', icon: Gift },
   { id: 'tier-config', name: 'Config Tier', icon: Settings },
   { id: 'history', name: 'History Log', icon: History },

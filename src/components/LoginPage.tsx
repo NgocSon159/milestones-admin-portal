@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { useAppContext } from '../contexts/AppContext';
 import { User, Lock, LogIn, Shield } from 'lucide-react';
-import { toast } from "sonner";
+import { toast } from 'sonner@2.0.3';
 
 export function LoginPage() {
   const { login } = useAppContext();

@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { useAppContext } from '../contexts/AppContext';
-import { Search, Filter, Plus, Edit, UserX, Trash2 } from 'lucide-react';
-import { toast } from "sonner";
+import { Search, Filter, Plus, Edit, UserX, Trash2, Award, Target } from 'lucide-react';
+import { toast } from 'sonner@2.0.3';
 
 export function MemberManagement() {
   const { members, setMembers, addHistoryLog } = useAppContext();
@@ -23,8 +23,9 @@ export function MemberManagement() {
   const [newMember, setNewMember] = useState({
     name: '',
     email: '',
-    tier: 'Bronze',
-    totalMiles: '',
+    tier: 'bronze',
+    totalQualifyingMiles: '',
+    totalAwardMiles: '',
     status: 'active' as 'active' | 'inactive'
   });
 
@@ -42,10 +43,10 @@ export function MemberManagement() {
 
   const getTierColor = (tier: string) => {
     switch (tier) {
-      case 'Platinum': return 'bg-purple-100 text-purple-800';
-      case 'Gold': return 'bg-yellow-100 text-yellow-800';
-      case 'Silver': return 'bg-gray-100 text-gray-800';
-      case 'Bronze': return 'bg-orange-100 text-orange-800';
+      case 'platinum': return 'bg-gray-100 text-gray-600';
+      case 'gold': return 'bg-yellow-200 text-yellow-700';
+      case 'silver': return 'bg-gray-200 text-gray-700';
+      case 'diamond': return 'bg-cyan-100 text-cyan-700';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -57,7 +58,7 @@ export function MemberManagement() {
   };
 
   const handleAddMember = () => {
-    if (!newMember.name || !newMember.email || !newMember.totalMiles) {
+    if (!newMember.name || !newMember.email || !newMember.totalQualifyingMiles || !newMember.totalAwardMiles) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -67,7 +68,8 @@ export function MemberManagement() {
       name: newMember.name,
       email: newMember.email,
       tier: newMember.tier,
-      totalMiles: parseInt(newMember.totalMiles),
+      totalQualifyingMiles: parseInt(newMember.totalQualifyingMiles),
+      totalAwardMiles: parseInt(newMember.totalAwardMiles),
       status: newMember.status
     };
 
@@ -82,8 +84,9 @@ export function MemberManagement() {
     setNewMember({
       name: '',
       email: '',
-      tier: 'Bronze',
-      totalMiles: '',
+      tier: 'bronze',
+      totalQualifyingMiles: '',
+      totalAwardMiles: '',
       status: 'active'
     });
   };
@@ -95,7 +98,8 @@ export function MemberManagement() {
         name: member.name,
         email: member.email,
         tier: member.tier,
-        totalMiles: member.totalMiles.toString(),
+        totalQualifyingMiles: member.totalQualifyingMiles.toString(),
+        totalAwardMiles: member.totalAwardMiles.toString(),
         status: member.status
       });
       setSelectedMember(memberId);
@@ -104,7 +108,7 @@ export function MemberManagement() {
   };
 
   const handleUpdateMember = () => {
-    if (!selectedMember || !newMember.name || !newMember.email || !newMember.totalMiles) {
+    if (!selectedMember || !newMember.name || !newMember.email || !newMember.totalQualifyingMiles || !newMember.totalAwardMiles) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -116,7 +120,8 @@ export function MemberManagement() {
             name: newMember.name,
             email: newMember.email,
             tier: newMember.tier,
-            totalMiles: parseInt(newMember.totalMiles),
+            totalQualifyingMiles: parseInt(newMember.totalQualifyingMiles),
+            totalAwardMiles: parseInt(newMember.totalAwardMiles),
             status: newMember.status
           }
         : member
@@ -133,8 +138,9 @@ export function MemberManagement() {
     setNewMember({
       name: '',
       email: '',
-      tier: 'Bronze',
-      totalMiles: '',
+      tier: 'bronze',
+      totalQualifyingMiles: '',
+      totalAwardMiles: '',
       status: 'active'
     });
   };
@@ -213,7 +219,7 @@ export function MemberManagement() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="tier">Tier</Label>
                   <Select value={newMember.tier} onValueChange={(value) => setNewMember({...newMember, tier: value})}>
@@ -221,20 +227,30 @@ export function MemberManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Bronze">Bronze</SelectItem>
-                      <SelectItem value="Silver">Silver</SelectItem>
-                      <SelectItem value="Gold">Gold</SelectItem>
-                      <SelectItem value="Platinum">Platinum</SelectItem>
+                      <SelectItem value="silver">Silver</SelectItem>
+                      <SelectItem value="gold">Gold</SelectItem>
+                      <SelectItem value="platinum">Platinum</SelectItem>
+                      <SelectItem value="diamond">Diamond</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="miles">Initial Miles *</Label>
+                  <Label htmlFor="qualifyingMiles">Qualifying Miles *</Label>
                   <Input
-                    id="miles"
+                    id="qualifyingMiles"
                     type="number"
-                    value={newMember.totalMiles}
-                    onChange={(e) => setNewMember({...newMember, totalMiles: e.target.value})}
+                    value={newMember.totalQualifyingMiles}
+                    onChange={(e) => setNewMember({...newMember, totalQualifyingMiles: e.target.value})}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="awardMiles">Award Miles *</Label>
+                  <Input
+                    id="awardMiles"
+                    type="number"
+                    value={newMember.totalAwardMiles}
+                    onChange={(e) => setNewMember({...newMember, totalAwardMiles: e.target.value})}
                     placeholder="0"
                   />
                 </div>
@@ -278,10 +294,10 @@ export function MemberManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Tiers</SelectItem>
-                <SelectItem value="Bronze">Bronze</SelectItem>
-                <SelectItem value="Silver">Silver</SelectItem>
-                <SelectItem value="Gold">Gold</SelectItem>
-                <SelectItem value="Platinum">Platinum</SelectItem>
+                <SelectItem value="silver">Silver</SelectItem>
+                <SelectItem value="gold">Gold</SelectItem>
+                <SelectItem value="platinum">Platinum</SelectItem>
+                <SelectItem value="diamond">Diamond</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -308,7 +324,18 @@ export function MemberManagement() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Current Tier</TableHead>
-                <TableHead>Total Miles</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    <Target className="w-4 h-4" />
+                    Total Qualifying Miles
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    <Award className="w-4 h-4" />
+                    Total Award Miles
+                  </div>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -321,10 +348,25 @@ export function MemberManagement() {
                   <TableCell>{member.email}</TableCell>
                   <TableCell>
                     <Badge className={getTierColor(member.tier)}>
-                      {member.tier}
+                      {member.tier.charAt(0).toUpperCase() + member.tier.slice(1)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{member.totalMiles.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Target className="w-3 h-3 text-blue-600" />
+                      <span className="font-medium text-blue-900">
+                        {member.totalQualifyingMiles.toLocaleString()}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Award className="w-3 h-3 text-green-600" />
+                      <span className="font-medium text-green-900">
+                        {member.totalAwardMiles.toLocaleString()}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(member.status)}>
                       {member.status}
@@ -394,7 +436,7 @@ export function MemberManagement() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="edit-tier">Tier</Label>
                 <Select value={newMember.tier} onValueChange={(value) => setNewMember({...newMember, tier: value})}>
@@ -402,20 +444,39 @@ export function MemberManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Bronze">Bronze</SelectItem>
-                    <SelectItem value="Silver">Silver</SelectItem>
-                    <SelectItem value="Gold">Gold</SelectItem>
-                    <SelectItem value="Platinum">Platinum</SelectItem>
+                    <SelectItem value="silver">Silver</SelectItem>
+                    <SelectItem value="gold">Gold</SelectItem>
+                    <SelectItem value="platinum">Platinum</SelectItem>
+                    <SelectItem value="diamond">Diamond</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-miles">Total Miles *</Label>
+                <Label htmlFor="edit-qualifyingMiles">
+                  <div className="flex items-center gap-1">
+                    <Target className="w-3 h-3" />
+                    Qualifying Miles *
+                  </div>
+                </Label>
                 <Input
-                  id="edit-miles"
+                  id="edit-qualifyingMiles"
                   type="number"
-                  value={newMember.totalMiles}
-                  onChange={(e) => setNewMember({...newMember, totalMiles: e.target.value})}
+                  value={newMember.totalQualifyingMiles}
+                  onChange={(e) => setNewMember({...newMember, totalQualifyingMiles: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-awardMiles">
+                  <div className="flex items-center gap-1">
+                    <Award className="w-3 h-3" />
+                    Award Miles *
+                  </div>
+                </Label>
+                <Input
+                  id="edit-awardMiles"
+                  type="number"
+                  value={newMember.totalAwardMiles}
+                  onChange={(e) => setNewMember({...newMember, totalAwardMiles: e.target.value})}
                 />
               </div>
             </div>
