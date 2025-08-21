@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { useAppContext } from '../contexts/AppContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from "sonner";
 import { Plane, User, Mail, Calendar, CreditCard, LogIn, UserPlus, Info } from 'lucide-react';
 
 // Mock flight database

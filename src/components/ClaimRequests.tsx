@@ -10,7 +10,7 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { useAppContext } from '../contexts/AppContext';
 import { Search, Filter } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from "sonner";
 
 export function ClaimRequests() {
   const { claimRequests, updateClaimRequest, addHistoryLog } = useAppContext();
