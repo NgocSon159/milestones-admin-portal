@@ -38,13 +38,15 @@ export function ClaimRequests() {
   const mapApiResponseToClaimRequest = (res: any) => {
     const flightInfoParts = [
       res.flightInfo?.flightNumber || '',
-      res.flightInfo?.departure || '',
-      res.flightInfo?.arrival || ''
+      res.customerFlight?.departure || '',
+      res.customerFlight?.arrival || ''
     ].filter(Boolean);
 
     const flightInfoString = flightInfoParts.length > 0
       ? `${flightInfoParts[0]}${flightInfoParts[1] ? ` - ${flightInfoParts[1]}` : ''}${flightInfoParts[2] ? ` to ${flightInfoParts[2]}` : ''}`
       : '';
+
+    const classMultiplier = (res.flightInfo.calculationDetails?.totalMiles || 0) / (res.flightInfo.calculationDetails?.baseDistance || 0) || 0
 
     return {
       id: res.id || '',
@@ -56,18 +58,18 @@ export function ClaimRequests() {
       status: res.status || 'reviewing',
       reason: res.reason || '',
       flightInfo: flightInfoString,
-      flightDetails: res.flightInfo ? {
-        flightNumber: res.flightInfo.flightNumber || '',
-        route: `${res.flightInfo.departure || ''} - ${res.flightInfo.departureCity || ''} → ${res.flightInfo.arrival || ''} - ${res.flightInfo.arrivalCity || ''}`,
-        origin: res.flightInfo.departure || '',
-        destination: res.flightInfo.arrival || '',
-        class: res.flightInfo.class || '',
-        distance: res.flightInfo.distance || 0,
-        baseQualifyingMiles: res.flightInfo.qualifyingMiles || 0,
-        classMultiplier: res.calculationDetails?.multiplier || 0,
-        bonusMiles: res.flightInfo.bonusMiles || 0,
-        qualifyingMiles: res.flightInfo.qualifyingMiles || 0,
-        totalMiles: res.flightInfo.totalMiles || 0
+      flightDetails: res.customerFlight ? {
+        flightNumber: res.customerFlight.flightNumber || '',
+        route: `${res.customerFlight.departure || ''} - ${res.customerFlight.departureInfo.city || ''} → ${res.customerFlight.arrival || ''} - ${res.customerFlight.arrivalInfo.city || ''}`,
+        origin: res.customerFlight.departure || '',
+        destination: res.customerFlight.arrival || '',
+        class: res.customerFlight.seatClass || '',
+        distance: res.customerFlight.distance || 0,
+        baseQualifyingMiles: res.flightInfo.calculationDetails?.baseDistance || 0,
+        classMultiplier: classMultiplier,
+        bonusMiles: res.flightInfo.calculationDetails?.totalMiles || 0,
+        qualifyingMiles: res.flightInfo.calculationDetails?.baseDistance || 0,
+        totalMiles: res.flightInfo.calculationDetails?.totalMiles || 0
       } : {
         flightNumber: res.flightInfo?.flightNumber || '',
         route: `${res.flightInfo?.departure || ''} - ${res.flightInfo?.departureCity || ''} → ${res.flightInfo?.arrival || ''} - ${res.flightInfo?.arrivalCity || ''}`,
