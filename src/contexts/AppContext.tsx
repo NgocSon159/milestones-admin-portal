@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { useEffect } from 'react';
 
 interface FlightDetails {
@@ -52,10 +52,10 @@ interface HistoryLog {
 interface Reward {
   id: string;
   name: string;
-  type: 'voucher' | 'cashback' | 'gift' | 'discount';
+  rewardType: 'voucher' | 'cashback' | 'gift' | 'discount';
   value: number;
   description: string;
-  milesRequired: number;
+  milesCost: number;
   validityStart: string;
   validityEnd: string;
   conditions: string;
@@ -63,9 +63,8 @@ interface Reward {
   createdDate: string;
   usageCount: number;
   maxUsage?: number;
-  tier: 'silver' | 'gold' | 'platinum' | 'diamond';
-  // Support for legacy data
-  pointsRequired?: number;
+  membershipId: string;
+  membershipName: string;
 }
 
 interface TierConfig {
@@ -103,14 +102,16 @@ interface AppContextType {
   setTiers: (tiers: TierConfig[]) => void;
   updateClaimRequest: (id: string, updates: Partial<ClaimRequest>) => void;
   addHistoryLog: (log: Omit<HistoryLog, 'id' | 'timestamp'>) => void;
-  addReward: (reward: Omit<Reward, 'id' | 'createdDate' | 'usageCount'>) => void;
+  addReward: (reward: Reward) => void;
   updateReward: (id: string, updates: Partial<Reward>) => void;
   deleteReward: (id: string) => void;
   addTier: (tier: Omit<TierConfig, 'id' | 'createdDate' | 'memberCount'>) => void;
   updateTier: (id: string, updates: Partial<TierConfig>) => void;
   deleteTier: (id: string) => void;
-  updateMemberTier: (memberId: string, newTier: string, miles: number) => void;
+  updateMemberTier: (memberId: string, newTier: string, miles: number, newAwardMiles?: number) => void;
   checkAndAssignRewards: (memberId: string, newMiles: number, newAwardMiles?: number) => void;
+  fetchRewards: () => Promise<void>;
+  fetchMemberships: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -250,76 +251,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   ]);
 
-  const [tiers, setTiers] = useState<TierConfig[]>([
-    {
-      id: 'T001',
-      name: 'silver',
-      displayName: 'Silver',
-      color: 'bg-gray-200 text-gray-700',
-      bgColor: '#C0C0C0',
-      textColor: '#4A4A4A',
-      milesRequired: 25000,
-      description: 'Mid-tier membership with enhanced benefits',
-      benefits: ['Priority customer support', 'Free seat selection', '10% bonus miles on flights'],
-      autoRewards: ['R001'],
-      status: 'active',
-      createdDate: '2025-01-01',
-      memberCount: 85,
-      maxRewardsPerMonth: 3,
-      tierBonus: 10
-    },
-    {
-      id: 'T002',
-      name: 'gold',
-      displayName: 'Gold',
-      color: 'bg-yellow-200 text-yellow-700',
-      bgColor: '#FFD700',
-      textColor: '#B8860B',
-      milesRequired: 50000,
-      description: 'Premium membership with exclusive privileges',
-      benefits: ['Dedicated customer support', 'Free seat selection', '25% bonus miles', 'Priority boarding'],
-      autoRewards: ['R001', 'R002'],
-      status: 'active',
-      createdDate: '2025-01-01',
-      memberCount: 45,
-      maxRewardsPerMonth: 5,
-      tierBonus: 25
-    },
-    {
-      id: 'T003',
-      name: 'platinum',
-      displayName: 'Platinum',
-      color: 'bg-gray-100 text-gray-600',
-      bgColor: '#E5E4E2',
-      textColor: '#8B8680',
-      milesRequired: 100000,
-      description: 'Elite membership with luxury benefits',
-      benefits: ['Personal concierge service', 'Unlimited seat selection', '50% bonus miles', 'Priority everything'],
-      autoRewards: ['R001', 'R002', 'R003'],
-      status: 'active',
-      createdDate: '2025-01-01',
-      memberCount: 20,
-      maxRewardsPerMonth: 8,
-      tierBonus: 50
-    },
-    {
-      id: 'T004',
-      name: 'diamond',
-      displayName: 'Diamond',
-      color: 'bg-cyan-100 text-cyan-700',
-      bgColor: '#B9F2FF',
-      textColor: '#0891B2',
-      milesRequired: 200000,
-      description: 'Ultimate tier with premium privileges',
-      benefits: ['White-glove service', 'Unlimited everything', '100% bonus miles', 'Exclusive access'],
-      autoRewards: ['R001', 'R002', 'R003', 'R004'],
-      status: 'active',
-      createdDate: '2025-01-01',
-      memberCount: 8,
-      maxRewardsPerMonth: 15,
-      tierBonus: 100
-    }
-  ]);
+  const [tiers, setTiers] = useState<TierConfig[]>([]);
 
   const [members, setMembers] = useState<Member[]>([
     { id: 'M001', name: 'John Smith', email: 'john.smith@email.com', tier: 'gold', totalQualifyingMiles: 45000, totalAwardMiles: 68000, status: 'active' },
@@ -334,88 +266,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
     { id: 'H003', adminName: 'Admin User', action: 'Rejected claim request', timestamp: '2025-01-14 16:45:00', requestId: 'LM-2025-001' }
   ]);
 
-  const [rewards, setRewards] = useState<Reward[]>([
-    {
-      id: 'R001',
-      name: 'Silver Flight Voucher',
-      type: 'voucher',
-      value: 50,
-      description: '$50 flight discount voucher for Silver members',
-      milesRequired: 10000,
-      validityStart: '2025-01-01',
-      validityEnd: '2025-12-31',
-      conditions: 'Valid for domestic flights only. Cannot be combined with other offers.',
-      status: 'active',
-      createdDate: '2025-01-10',
-      usageCount: 25,
-      maxUsage: 100,
-      tier: 'silver'
-    },
-    {
-      id: 'R002',
-      name: 'Gold Lounge Access',
-      type: 'gift',
-      value: 1,
-      description: 'Complimentary airport lounge access for Gold members',
-      milesRequired: 15000,
-      validityStart: '2025-01-01',
-      validityEnd: '2025-06-30',
-      conditions: 'Valid at selected partner lounges. Must present digital voucher.',
-      status: 'active',
-      createdDate: '2025-01-08',
-      usageCount: 12,
-      maxUsage: 50,
-      tier: 'gold'
-    },
-    {
-      id: 'R003',
-      name: 'Platinum Cashback',
-      type: 'cashback',
-      value: 100,
-      description: '$100 cashback for Platinum members',
-      milesRequired: 25000,
-      validityStart: '2025-02-01',
-      validityEnd: '2025-12-31',
-      conditions: 'Minimum purchase of $500 required. Cashback processed within 7 days.',
-      status: 'active',
-      createdDate: '2025-01-05',
-      usageCount: 8,
-      maxUsage: 30,
-      tier: 'platinum'
-    },
-    {
-      id: 'R004',
-      name: 'Diamond Elite Package',
-      type: 'gift',
-      value: 500,
-      description: 'Exclusive Diamond member luxury package',
-      milesRequired: 50000,
-      validityStart: '2025-03-01',
-      validityEnd: '2025-12-31',
-      conditions: 'Limited time exclusive offer for Diamond tier members only.',
-      status: 'draft',
-      createdDate: '2025-01-03',
-      usageCount: 0,
-      maxUsage: 10,
-      tier: 'diamond'
-    },
-    {
-      id: 'R005',
-      name: 'Gold Shopping Discount',
-      type: 'discount',
-      value: 20,
-      description: '20% discount on selected partner stores',
-      milesRequired: 12000,
-      validityStart: '2025-01-15',
-      validityEnd: '2025-06-15',
-      conditions: 'Valid at participating retailers. See terms for details.',
-      status: 'active',
-      createdDate: '2025-01-15',
-      usageCount: 18,
-      maxUsage: 200,
-      tier: 'gold'
+  const [rewards, setRewards] = useState<Reward[]>([]);
+
+  const fetchRewards = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
     }
-  ]);
+
+    try {
+      const response = await fetch('https://mileswise-be.onrender.com/api/admin/rewards', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      const mappedRewards: Reward[] = data.map((reward: any) => ({
+        id: reward.id,
+        name: reward.name,
+        rewardType: reward.rewardType,
+        value: parseFloat(reward.value),
+        description: reward.description,
+        milesCost: reward.milesCost,
+        validityStart: reward.validFrom.split('T')[0],
+        validityEnd: reward.validUntil.split('T')[0],
+        conditions: reward.termsAndConditions,
+        status: reward.status === 'public' ? 'active' : 'draft', // Assuming 'public' maps to 'active'
+        createdDate: reward.createdAt.split('T')[0],
+        usageCount: 0, // API response doesn't have usageCount, default to 0
+        maxUsage: reward.maxUsage,
+        membershipId: reward.membershipId,
+        membershipName: reward.membershipInfo.name,
+      }));
+      setRewards(mappedRewards);
+    } catch (error) {
+      console.error('Failed to fetch rewards:', error);
+      // Optionally, show a toast notification for error
+    }
+  }, [setIsAuthenticated, setRewards]);
+
+  const fetchMemberships = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('https://mileswise-be.onrender.com/api/admin/memberships', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      // Map API response to TierConfig structure
+      const mappedTiers: TierConfig[] = data.map((membership: any) => ({
+        id: membership.id,
+        name: membership.name.toLowerCase(), // Assuming tier name should be lowercase for internal use
+        displayName: membership.name,
+        color: '', // To be determined or remove if not used
+        bgColor: '', // To be determined or remove if not used
+        textColor: '', // To be determined or remove if not used
+        milesRequired: membership.milesRequired,
+        description: membership.description,
+        benefits: [membership.benefit], // Assuming benefit is a single string
+        autoRewards: [], // To be determined
+        status: 'active', // Assuming all fetched memberships are active
+        createdDate: membership.createdAt.split('T')[0],
+        memberCount: 0, // API response doesn't have memberCount, default to 0
+        maxRewardsPerMonth: 0, // To be determined
+        tierBonus: 0, // To be determined
+      }));
+      setTiers(mappedTiers);
+    } catch (error) {
+      console.error('Failed to fetch memberships:', error);
+    }
+  }, [setIsAuthenticated, setTiers]);
+
+  useEffect(() => {
+    fetchRewards();
+    fetchMemberships();
+  }, [isAuthenticated, fetchRewards, fetchMemberships]);
 
   const updateClaimRequest = (id: string, updates: Partial<ClaimRequest>) => {
     setClaimRequests(prev => 
@@ -441,14 +379,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHistoryLogs(prev => [newLog, ...prev]);
   };
 
-  const addReward = (reward: Omit<Reward, 'id' | 'createdDate' | 'usageCount'>) => {
-    const newReward: Reward = {
-      ...reward,
-      id: `R${Date.now()}`,
-      createdDate: new Date().toISOString().split('T')[0],
-      usageCount: 0
-    };
-    setRewards(prev => [newReward, ...prev]);
+  const addReward = (reward: Reward) => {
+    setRewards(prev => [reward, ...prev]);
   };
 
   const updateReward = (id: string, updates: Partial<Reward>) => {
@@ -570,7 +502,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateTier,
       deleteTier,
       updateMemberTier,
-      checkAndAssignRewards
+      checkAndAssignRewards,
+      fetchRewards,
+      fetchMemberships
     }}>
       {children}
     </AppContext.Provider>

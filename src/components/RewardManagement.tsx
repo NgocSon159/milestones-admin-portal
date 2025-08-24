@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -23,44 +23,57 @@ interface RewardManagementProps {
   onNavigate: (page: string, subPage?: string, id?: string) => void;
 }
 
-const tierConfig = {
-  silver: { 
-    name: 'Silver', 
-    color: 'bg-gray-200 text-gray-700 border-gray-300',
-    bgColor: '#C0C0C0',
-    textColor: '#4A4A4A' 
-  },
-  gold: { 
-    name: 'Gold', 
-    color: 'bg-yellow-200 text-yellow-700 border-yellow-300',
-    bgColor: '#FFD700',
-    textColor: '#B8860B' 
-  },
-  platinum: { 
-    name: 'Platinum', 
-    color: 'bg-gray-100 text-gray-600 border-gray-200',
-    bgColor: '#E5E4E2',
-    textColor: '#8B8680' 
-  },
-  diamond: { 
-    name: 'Diamond', 
-    color: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-    bgColor: '#B9F2FF',
-    textColor: '#0891B2' 
-  }
-};
+// const tierConfig = {
+//   silver: { 
+//     name: 'Silver', 
+//     color: 'bg-gray-200 text-gray-700 border-gray-300',
+//     bgColor: '#C0C0C0',
+//     textColor: '#4A4A4A' 
+//   },
+//   gold: { 
+//     name: 'Gold', 
+//     color: 'bg-yellow-200 text-yellow-700 border-yellow-300',
+//     bgColor: '#FFD700',
+//     textColor: '#B8860B' 
+//   },
+//   platinum: { 
+//     name: 'Platinum', 
+//     color: 'bg-gray-100 text-gray-600 border-gray-200',
+//     bgColor: '#E5E4E2',
+//     textColor: '#8B8680' 
+//   },
+//   diamond: { 
+//     name: 'Diamond', 
+//     color: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+//     bgColor: '#B9F2FF',
+//     textColor: '#0891B2' 
+//   }
+// };
 
 export function RewardManagement({ onNavigate }: RewardManagementProps) {
-  const { rewards, deleteReward, updateReward, addHistoryLog } = useAppContext();
-  const [activeTier, setActiveTier] = useState<'all' | 'silver' | 'gold' | 'platinum' | 'diamond'>('all');
+  const { rewards, deleteReward, updateReward, addHistoryLog, fetchRewards, tiers } = useAppContext();
+  const [activeMembership, setActiveMembership] = useState<'all' | string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'draft'>('all');
+
+  const getMembershipConfig = useCallback((membershipId: string) => {
+    return tiers.find(tier => tier.id === membershipId) || {
+      id: '', name: 'unknown', displayName: 'Unknown', color: 'bg-gray-500 text-white', 
+      bgColor: '#000000', textColor: '#FFFFFF', milesRequired: 0, description: '', 
+      benefits: [], autoRewards: [], status: 'inactive', createdDate: '', memberCount: 0,
+      maxRewardsPerMonth: 0, tierBonus: 0
+    };
+  }, [tiers]);
+
+  useEffect(() => {
+    fetchRewards();
+  }, [fetchRewards]);
 
   const handleEdit = (rewardId: string) => {
     onNavigate('rewards', 'edit', rewardId);
   };
 
-  const handleDelete = async (rewardId: string, rewardName: string) => {
+  const handleDelete = useCallback(async (rewardId: string, rewardName: string) => {
     if (!confirm(`Are you sure you want to delete "${rewardName}"?`)) return;
 
     try {
@@ -73,7 +86,7 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
     } catch (error) {
       toast.error('Failed to delete reward');
     }
-  };
+  }, [deleteReward, addHistoryLog]);
 
   const toggleRewardStatus = (rewardId: string, currentStatus: string, rewardName: string) => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
@@ -96,21 +109,19 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
 
   // Filter rewards
   const filteredRewards = rewards.filter(reward => {
-    const matchesTier = activeTier === 'all' || reward.tier === activeTier;
-    const matchesSearch = reward.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         reward.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesMembership = activeMembership === 'all' || reward.membershipId === activeMembership;
+    const matchesSearch = (reward.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                         (reward.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || reward.status === statusFilter;
     
-    return matchesTier && matchesSearch && matchesStatus;
+    return matchesMembership && matchesSearch && matchesStatus;
   });
 
-  // Group rewards by tier for display
-  const rewardsByTier = {
-    silver: filteredRewards.filter(r => r.tier === 'silver'),
-    gold: filteredRewards.filter(r => r.tier === 'gold'),
-    platinum: filteredRewards.filter(r => r.tier === 'platinum'),
-    diamond: filteredRewards.filter(r => r.tier === 'diamond')
-  };
+  // Group rewards by membership
+  const rewardsByMembership = tiers.reduce((acc, tier) => {
+    acc[tier.id] = filteredRewards.filter(r => r.membershipId === tier.id);
+    return acc;
+  }, {} as Record<string, typeof filteredRewards>);
 
   // Statistics
   const stats = {
@@ -156,7 +167,7 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Rewards Management</h1>
-              <p className="text-gray-600">Manage tier-based rewards for your loyalty program</p>
+              <p className="text-gray-600">Manage membership-based rewards for your loyalty program</p>
             </div>
           </div>
           
@@ -261,23 +272,23 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
         </CardContent>
       </Card>
 
-      {/* Tier Tabs */}
+      {/* Membership Tabs */}
       <Card className="bg-white shadow-sm border border-gray-200">
         <CardContent className="p-0">
-          <Tabs value={activeTier} onValueChange={(value: any) => setActiveTier(value)}>
+          <Tabs value={activeMembership} onValueChange={(value: any) => setActiveMembership(value)}>
             <div className="border-b px-6 py-4">
               <TabsList className="bg-gray-100">
                 <TabsTrigger value="all" className="text-sm">
-                  All Tiers ({filteredRewards.length})
+                  All Memberships ({filteredRewards.length})
                 </TabsTrigger>
-                {Object.entries(tierConfig).map(([key, config]) => (
-                  <TabsTrigger key={key} value={key} className="text-sm">
+                {tiers.filter(tier => tier.status === 'active').map((tier) => (
+                  <TabsTrigger key={tier.id} value={tier.id} className="text-sm">
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: config.bgColor }}
+                        style={{ backgroundColor: tier.bgColor || '#cccccc' }} // Fallback color
                       ></div>
-                      {config.name} ({rewardsByTier[key as keyof typeof rewardsByTier].length})
+                      {tier.displayName} ({rewardsByMembership[tier.id]?.length || 0})
                     </div>
                   </TabsTrigger>
                 ))}
@@ -291,8 +302,8 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-2">
-                          <Badge className={tierConfig[reward.tier].color}>
-                            {tierConfig[reward.tier].name}
+                          <Badge className={getMembershipConfig(reward.membershipId).color}>
+                            {reward.membershipName}
                           </Badge>
                           {getStatusIcon(reward.status)}
                         </div>
@@ -320,10 +331,10 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
                         
                         <div className="flex items-center justify-between pt-2">
                           <span className="text-blue-600 font-medium">
-                            {formatValue(reward.type, reward.value)}
+                            {formatValue(reward.rewardType, reward.value)}
                           </span>
                           <span className="text-sm text-gray-500">
-                            {(reward.milesRequired || reward.pointsRequired || 0).toLocaleString()} miles
+                            {(reward.milesCost || 0).toLocaleString()} miles
                           </span>
                         </div>
                         
@@ -364,7 +375,7 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
                 ))}
               </div>
               
-              {filteredRewards.length === 0 && (
+              {filteredRewards.length === 0 && ( // Conditional rendering for no rewards
                 <div className="text-center py-12">
                   <Gift className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">No rewards found matching your criteria.</p>
@@ -372,16 +383,16 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
               )}
             </TabsContent>
 
-            {Object.entries(tierConfig).map(([tierKey, config]) => (
-              <TabsContent key={tierKey} value={tierKey} className="p-6">
+            {tiers.filter(tier => tier.status === 'active').map((tier) => (
+              <TabsContent key={tier.id} value={tier.id} className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rewardsByTier[tierKey as keyof typeof rewardsByTier].map((reward) => (
+                  {rewardsByMembership[tier.id]?.map((reward) => (
                     <Card key={reward.id} className="hover:shadow-md transition-shadow border border-gray-200">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-2">
-                            <Badge className={config.color}>
-                              {config.name}
+                            <Badge className={getMembershipConfig(reward.membershipId).color}>
+                              {reward.membershipName}
                             </Badge>
                             {getStatusIcon(reward.status)}
                           </div>
@@ -409,10 +420,10 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
                           
                           <div className="flex items-center justify-between pt-2">
                             <span className="text-blue-600 font-medium">
-                              {formatValue(reward.type, reward.value)}
+                              {formatValue(reward.rewardType, reward.value)}
                             </span>
                             <span className="text-sm text-gray-500">
-                              {(reward.milesRequired || reward.pointsRequired || 0).toLocaleString()} miles
+                              {(reward.milesCost || 0).toLocaleString()} miles
                             </span>
                           </div>
                           
@@ -453,15 +464,15 @@ export function RewardManagement({ onNavigate }: RewardManagementProps) {
                   ))}
                 </div>
                 
-                {rewardsByTier[tierKey as keyof typeof rewardsByTier].length === 0 && (
+                {(rewardsByMembership[tier.id]?.length || 0) === 0 && (
                   <div className="text-center py-12">
                     <div 
                       className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                      style={{ backgroundColor: config.bgColor + '40' }}
+                      style={{ backgroundColor: tier.bgColor + '40' || '#cccccc40' }}
                     >
-                      <Crown className="w-8 h-8" style={{ color: config.textColor }} />
+                      <Crown className="w-8 h-8" style={{ color: tier.textColor || '#000000' }} />
                     </div>
-                    <p className="text-gray-500">No {config.name} tier rewards found.</p>
+                    <p className="text-gray-500">No {tier.displayName} rewards found.</p>
                   </div>
                 )}
               </TabsContent>

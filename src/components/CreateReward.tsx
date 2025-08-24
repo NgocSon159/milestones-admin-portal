@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,44 +15,17 @@ interface CreateRewardProps {
 
 interface RewardFormData {
   name: string;
-  type: 'voucher' | 'cashback' | 'gift' | 'discount';
+  rewardType: 'voucher' | 'cashback' | 'gift' | 'discount';
   value: number;
   description: string;
-  milesRequired: number;
+  milesCost: number;
   validityStart: string;
   validityEnd: string;
   conditions: string;
-  tier: 'silver' | 'gold' | 'platinum' | 'diamond';
+  membershipId: string;
   maxUsage?: number;
   status: 'draft' | 'active';
 }
-
-const tierConfig = {
-  silver: { 
-    name: 'Silver', 
-    color: 'bg-gray-200 text-gray-700 border-gray-300',
-    bgColor: '#C0C0C0',
-    textColor: '#4A4A4A' 
-  },
-  gold: { 
-    name: 'Gold', 
-    color: 'bg-yellow-200 text-yellow-700 border-yellow-300',
-    bgColor: '#FFD700',
-    textColor: '#B8860B' 
-  },
-  platinum: { 
-    name: 'Platinum', 
-    color: 'bg-gray-100 text-gray-600 border-gray-200',
-    bgColor: '#E5E4E2',
-    textColor: '#8B8680' 
-  },
-  diamond: { 
-    name: 'Diamond', 
-    color: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-    bgColor: '#B9F2FF',
-    textColor: '#0891B2' 
-  }
-};
 
 const rewardTypeConfig = {
   voucher: { name: 'Voucher', icon: '🎫', color: 'bg-blue-100 text-blue-700' },
@@ -62,22 +35,32 @@ const rewardTypeConfig = {
 };
 
 export function CreateReward({ onNavigate }: CreateRewardProps) {
-  const { addReward, addHistoryLog } = useAppContext();
+  const { addReward, addHistoryLog, fetchMemberships, tiers } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState<RewardFormData>({
     name: '',
-    type: 'voucher',
+    rewardType: 'voucher',
     value: 0,
     description: '',
-    milesRequired: 0,
+    milesCost: 0,
     validityStart: new Date().toISOString().split('T')[0],
     validityEnd: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     conditions: '',
-    tier: 'silver',
+    membershipId: '',
     maxUsage: undefined,
     status: 'draft'
   });
+
+  useEffect(() => {
+    fetchMemberships();
+  }, [fetchMemberships]);
+
+  useEffect(() => {
+    if (tiers.length > 0 && !formData.membershipId) {
+      setFormData(prev => ({ ...prev, membershipId: tiers[0].id }));
+    }
+  }, [tiers, formData.membershipId]);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -107,8 +90,8 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
       errors.value = 'Value must be greater than 0';
     }
 
-    if (formData.milesRequired <= 0) {
-      errors.milesRequired = 'Miles required must be greater than 0';
+    if (formData.milesCost <= 0) {
+      errors.milesCost = 'Miles required must be greater than 0';
     }
 
     if (!formData.validityStart) {
@@ -121,6 +104,10 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
 
     if (formData.validityStart && formData.validityEnd && new Date(formData.validityStart) >= new Date(formData.validityEnd)) {
       errors.validityEnd = 'End date must be after start date';
+    }
+
+    if (!formData.membershipId) {
+      errors.membershipId = 'Membership tier is required';
     }
 
     setFormErrors(errors);
@@ -138,36 +125,73 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication token not found.');
+        onNavigate('login');
+        return;
+      }
+
+      const payload = {
+        rewardName: formData.name,
+        description: formData.description,
+        membershipId: formData.membershipId,
+        rewardType: formData.rewardType,
+        value: formData.value,
+        milesRequired: formData.milesCost,
+        validFrom: formData.validityStart,
+        validUntil: formData.validityEnd,
+        termsAndConditions: formData.conditions,
+        maxUsage: formData.maxUsage,
+        status: formData.status === 'active' ? 'public' : 'draft',
+      };
+
+      const response = await fetch('https://mileswise-be.onrender.com/api/admin/rewards', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const newReward = await response.json();
+      const membershipName = tiers.find(tier => tier.id === newReward.membershipId)?.displayName || 'Unknown';
 
       addReward({
-        ...formData,
-        status: formData.status
+        id: newReward.id,
+        name: newReward.name,
+        rewardType: newReward.rewardType,
+        value: parseFloat(newReward.value),
+        description: newReward.description,
+        milesCost: newReward.milesCost,
+        validityStart: newReward.validFrom.split('T')[0],
+        validityEnd: newReward.validUntil.split('T')[0],
+        conditions: newReward.termsAndConditions,
+        status: newReward.status === 'public' ? 'active' : 'draft', 
+        createdDate: new Date(newReward.createdAt).toISOString().split('T')[0],
+        usageCount: 0, 
+        maxUsage: newReward.maxUsage,
+        membershipId: newReward.membershipId,
+        membershipName: membershipName,
       });
       
       addHistoryLog({
         adminName: 'Admin User',
-        action: `Created new ${tierConfig[formData.tier].name} reward "${formData.name}" (${formData.status})`
+        action: `Created new ${membershipName} reward "${formData.name}" (${formData.status})`
       });
 
       toast.success('Reward created successfully');
       onNavigate('rewards');
-    } catch (error) {
-      toast.error('Failed to create reward');
+    } catch (error: any) {
+      toast.error(`Failed to create reward: ${error.message}`);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const formatValue = (type: string, value: number) => {
-    switch (type) {
-      case 'cashback':
-      case 'voucher':
-        return `$${value}`;
-      case 'discount':
-        return `${value}%`;
-      default:
-        return value.toString();
     }
   };
 
@@ -232,35 +256,36 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tier">Tier *</Label>
+                  <Label htmlFor="membershipId">Membership Tier *</Label>
                   <Select
-                    value={formData.tier}
-                    onValueChange={(value) => handleInputChange('tier', value)}
+                    value={formData.membershipId}
+                    onValueChange={(value) => handleInputChange('membershipId', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className={formErrors.membershipId ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Select a tier" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(tierConfig).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>
+                      {tiers.filter(tier => tier.status === 'active').map((tier) => (
+                        <SelectItem key={tier.id} value={tier.id}>
                           <div className="flex items-center gap-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: config.bgColor }}
+                              style={{ backgroundColor: tier.bgColor || '#cccccc' }}
                             ></div>
-                            {config.name}
+                            {tier.displayName}
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {formErrors.membershipId && <p className="text-sm text-red-600">{formErrors.membershipId}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="type">Reward Type *</Label>
+                  <Label htmlFor="rewardType">Reward Type *</Label>
                   <Select
-                    value={formData.type}
-                    onValueChange={(value) => handleInputChange('type', value)}
+                    value={formData.rewardType}
+                    onValueChange={(value) => handleInputChange('rewardType', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -294,16 +319,16 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="milesRequired">Miles Required *</Label>
+                  <Label htmlFor="milesCost">Miles Required *</Label>
                   <Input
-                    id="milesRequired"
+                    id="milesCost"
                     type="number"
                     placeholder="Miles needed"
-                    value={formData.milesRequired}
-                    onChange={(e) => handleInputChange('milesRequired', parseInt(e.target.value) || 0)}
-                    className={formErrors.milesRequired ? 'border-red-500' : ''}
+                    value={formData.milesCost}
+                    onChange={(e) => handleInputChange('milesCost', parseInt(e.target.value) || 0)}
+                    className={formErrors.milesCost ? 'border-red-500' : ''}
                   />
-                  {formErrors.milesRequired && <p className="text-sm text-red-600">{formErrors.milesRequired}</p>}
+                  {formErrors.milesCost && <p className="text-sm text-red-600">{formErrors.milesCost}</p>}
                 </div>
               </div>
 
