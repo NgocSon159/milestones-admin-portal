@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useState } from 'react';
+import { Card, CardContent } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -8,8 +8,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { useAppContext } from '../contexts/AppContext';
-import { Search, Filter, Plus, Edit, UserX, Trash2, Award, Target } from 'lucide-react';
+import { Search, Plus, Edit, UserX, Trash2, Award, Target } from 'lucide-react';
 import { toast } from "sonner";
+import { useEffect } from 'react';
+
+interface Membership {
+  id: string;
+  name: string;
+  description: string;
+  milesRequired: number;
+  color: string;
+}
+
+interface MemberAPIResponse {
+  memberId: string;
+  customerNumber: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  isActive: boolean;
+  dob: string;
+  streetAddress: string;
+  city: string;
+  country: string;
+  gender: string;
+  postalCode: string;
+  isAcceptRule: boolean;
+  isAcceptMKT: boolean;
+  totalBonusMiles: number;
+  totalQuantifyingMiles: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  memberships: Membership[];
+}
+
+interface Member {
+  id: string;
+  name: string;
+  email: string;
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+  totalQualifyingMiles: number;
+  totalAwardMiles: number;
+  status: 'active' | 'inactive';
+}
 
 export function MemberManagement() {
   const { members, setMembers, addHistoryLog } = useAppContext();
@@ -19,6 +63,7 @@ export function MemberManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // New loading state
   
   const [newMember, setNewMember] = useState({
     name: '',
@@ -40,22 +85,6 @@ export function MemberManagement() {
     
     return matchesSearch && matchesTier && matchesStatus;
   });
-
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case 'platinum': return 'bg-gray-100 text-gray-600';
-      case 'gold': return 'bg-yellow-200 text-yellow-700';
-      case 'silver': return 'bg-gray-200 text-gray-700';
-      case 'diamond': return 'bg-cyan-100 text-cyan-700';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    return status === 'active' 
-      ? 'bg-green-100 text-green-800' 
-      : 'bg-red-100 text-red-800';
-  };
 
   const handleAddMember = () => {
     if (!newMember.name || !newMember.email || !newMember.totalQualifyingMiles || !newMember.totalAwardMiles) {
@@ -145,21 +174,47 @@ export function MemberManagement() {
     });
   };
 
-  const handleDeactivateMember = (memberId: string) => {
+  const handleDeactivateMember = async (memberId: string) => {
     const member = members.find(m => m.id === memberId);
-    if (member) {
+    if (!member) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authorization token not found. Please log in again.');
+      return;
+    }
+
+    const newIsActiveStatus = member.status !== 'active';
+
+    try {
+      const response = await fetch(`https://mileswise-be.onrender.com/api/admin/members/${memberId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: newIsActiveStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       setMembers(members.map(m => 
         m.id === memberId 
-          ? { ...m, status: m.status === 'active' ? 'inactive' : 'active' }
+          ? { ...m, status: newIsActiveStatus ? 'active' : 'inactive' }
           : m
       ));
 
       addHistoryLog({
         adminName: 'Admin User',
-        action: `${member.status === 'active' ? 'Deactivated' : 'Activated'} member: ${member.name}`
+        action: `${newIsActiveStatus ? 'Activated' : 'Deactivated'} member: ${member.name}`
       });
 
-      toast.success(`Member ${member.status === 'active' ? 'deactivated' : 'activated'} successfully`);
+      toast.success(`Member ${newIsActiveStatus ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      console.error('Error updating member status:', error);
+      toast.error('Failed to update member status.');
     }
   };
 
@@ -175,6 +230,64 @@ export function MemberManagement() {
 
       toast.success('Member removed successfully');
     }
+  };
+
+  const fetchMembers = async () => {
+    const token = localStorage.getItem('token'); 
+    if (!token) {
+      toast.error('Authorization token not found. Please log in again.');
+      return;
+    }
+
+    try {
+      setIsLoading(true); // Set loading to true before fetching
+      const response = await fetch('https://mileswise-be.onrender.com/api/admin/members', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: MemberAPIResponse[] = await response.json();
+      const formattedMembers: Member[] = data.map(apiMember => ({
+        id: apiMember.memberId, // Using email as a unique ID for now, as API response doesn't have a direct 'id' field for Member
+        name: apiMember.fullName,
+        email: apiMember.email,
+        tier: apiMember.memberships[0]?.name.toLowerCase() as 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' || 'bronze',
+        totalQualifyingMiles: apiMember.totalQuantifyingMiles,
+        totalAwardMiles: apiMember.totalBonusMiles,
+        status: apiMember.isActive ? 'active' : 'inactive',
+      }));
+      setMembers(formattedMembers);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+      toast.error('Failed to fetch members.');
+    } finally {
+      setIsLoading(false); // Set loading to false after fetching (success or error)
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, []); 
+
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case 'platinum': return 'bg-gray-100 text-gray-600';
+      case 'gold': return 'bg-yellow-200 text-yellow-700';
+      case 'silver': return 'bg-gray-200 text-gray-700';
+      case 'diamond': return 'bg-cyan-100 text-cyan-700';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    return status === 'active' 
+      ? 'bg-green-100 text-green-800' 
+      : 'bg-red-100 text-red-800';
   };
 
   return (
@@ -320,7 +433,6 @@ export function MemberManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Member ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Current Tier</TableHead>
@@ -341,72 +453,85 @@ export function MemberManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMembers.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-mono text-sm">{member.id}</TableCell>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.email}</TableCell>
-                  <TableCell>
-                    <Badge className={getTierColor(member.tier)}>
-                      {member.tier.charAt(0).toUpperCase() + member.tier.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Target className="w-3 h-3 text-blue-600" />
-                      <span className="font-medium text-blue-900">
-                        {member.totalQualifyingMiles.toLocaleString()}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Award className="w-3 h-3 text-green-600" />
-                      <span className="font-medium text-green-900">
-                        {member.totalAwardMiles.toLocaleString()}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(member.status)}>
-                      {member.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditMember(member.id)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeactivateMember(member.id)}
-                      >
-                        <UserX className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRemoveMember(member.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Loading...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredMembers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Không tìm thấy thành viên phù hợp với tiêu chí tìm kiếm của bạn.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredMembers.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name}</TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>
+                      <Badge className={getTierColor(member.tier)}>
+                        {member.tier.charAt(0).toUpperCase() + member.tier.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Target className="w-3 h-3 text-blue-600" />
+                        <span className="font-medium text-blue-900">
+                          {member.totalQualifyingMiles.toLocaleString()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Award className="w-3 h-3 text-green-600" />
+                        <span className="font-medium text-green-900">
+                          {member.totalAwardMiles.toLocaleString()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(member.status)}>
+                        {member.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditMember(member.id)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeactivateMember(member.id)}
+                        >
+                          <UserX className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
-          
-          {filteredMembers.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No members found matching your search criteria.
-            </div>
-          )}
+            
+            {/* {filteredMembers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No members found matching your search criteria.
+              </div>
+            )} */}
         </CardContent>
       </Card>
 
@@ -437,60 +562,6 @@ export function MemberManagement() {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="edit-tier">Tier</Label>
-                <Select value={newMember.tier} onValueChange={(value) => setNewMember({...newMember, tier: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="silver">Silver</SelectItem>
-                    <SelectItem value="gold">Gold</SelectItem>
-                    <SelectItem value="platinum">Platinum</SelectItem>
-                    <SelectItem value="diamond">Diamond</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="edit-qualifyingMiles">
-                  <div className="flex items-center gap-1">
-                    <Target className="w-3 h-3" />
-                    Qualifying Miles *
-                  </div>
-                </Label>
-                <Input
-                  id="edit-qualifyingMiles"
-                  type="number"
-                  value={newMember.totalQualifyingMiles}
-                  onChange={(e) => setNewMember({...newMember, totalQualifyingMiles: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-awardMiles">
-                  <div className="flex items-center gap-1">
-                    <Award className="w-3 h-3" />
-                    Award Miles *
-                  </div>
-                </Label>
-                <Input
-                  id="edit-awardMiles"
-                  type="number"
-                  value={newMember.totalAwardMiles}
-                  onChange={(e) => setNewMember({...newMember, totalAwardMiles: e.target.value})}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={newMember.status} onValueChange={(value: 'active' | 'inactive') => setNewMember({...newMember, status: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <Button onClick={handleUpdateMember} className="w-full">
               Update Member

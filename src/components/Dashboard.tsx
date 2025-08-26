@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -11,81 +10,96 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useAppContext } from '../contexts/AppContext';
 import { FileText, CheckCircle, XCircle, Clock, Users, Calendar, TrendingUp, Eye } from 'lucide-react';
 import { toast } from "sonner";
+import { DashboardStats, EarnMilesRequest } from '../types/api.d';
 
 export function Dashboard() {
-  const { claimRequests, members, updateClaimRequest, addHistoryLog } = useAppContext();
+  const { addHistoryLog } = useAppContext();
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showRejectionInput, setShowRejectionInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [datePeriod, setDatePeriod] = useState('7days');
+  const [datePeriod, setDatePeriod] = useState('6months');
+
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [recentClaimRequests, setRecentClaimRequests] = useState<EarnMilesRequest[]>([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication token not found. Please log in again.');
+        return;
+      }
+
+      try {
+        // Fetch Dashboard Stats
+        const dashboardResponse = await fetch('https://mileswise-be.onrender.com/api/admin/dashboard', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!dashboardResponse.ok) {
+          throw new Error(`HTTP error! status: ${dashboardResponse.status}`);
+        }
+        const dashboardData: DashboardStats = await dashboardResponse.json();
+        setDashboardStats(dashboardData);
+
+        // Fetch Recent Claim Requests
+        const claimsResponse = await fetch('https://mileswise-be.onrender.com/api/admin/earn-miles-requests', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!claimsResponse.ok) {
+          throw new Error(`HTTP error! status: ${claimsResponse.status}`);
+        }
+        const claimsData: EarnMilesRequest[] = await claimsResponse.json();
+        setRecentClaimRequests(claimsData);
+
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        toast.error('Failed to load dashboard data. Please try again later.');
+      }
+    };
+
+    fetchDashboardData();
+  }, []); // Run once on component mount
 
   // Statistics
-  const stats = {
-    total: claimRequests.length,
-    pending: claimRequests.filter(req => req.status === 'pending').length,
-    approved: claimRequests.filter(req => req.status === 'approved').length,
-    rejected: claimRequests.filter(req => req.status === 'rejected').length,
-    totalMembers: members.length
+  const stats = dashboardStats ? {
+    total: dashboardStats.totalRequest,
+    pending: dashboardStats.totalPending,
+    approved: dashboardStats.totalApproved,
+    rejected: dashboardStats.totalRejected,
+    totalMembers: dashboardStats.totalMember
+  } : {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    totalMembers: 0
   };
 
   // Generate chart data based on selected date period
-  const generateChartData = (period: string) => {
-    switch (period) {
-      case '7days':
-        return [
-          { name: 'Aug 3', approved: Math.max(0, stats.approved - 8), pending: Math.max(0, stats.pending - 3), rejected: Math.max(0, stats.rejected - 2) },
-          { name: 'Aug 4', approved: Math.max(0, stats.approved - 7), pending: Math.max(0, stats.pending - 2), rejected: Math.max(0, stats.rejected - 2) },
-          { name: 'Aug 5', approved: Math.max(0, stats.approved - 5), pending: Math.max(0, stats.pending - 1), rejected: Math.max(0, stats.rejected - 1) },
-          { name: 'Aug 6', approved: Math.max(0, stats.approved - 4), pending: stats.pending + 1, rejected: stats.rejected },
-          { name: 'Aug 7', approved: Math.max(0, stats.approved - 3), pending: stats.pending + 2, rejected: stats.rejected },
-          { name: 'Aug 8', approved: Math.max(0, stats.approved - 2), pending: stats.pending, rejected: stats.rejected },
-          { name: 'Aug 9', approved: Math.max(0, stats.approved - 1), pending: stats.pending, rejected: stats.rejected },
-          { name: 'Aug 10', approved: stats.approved, pending: stats.pending, rejected: stats.rejected }
-        ];
-      
-      case '30days':
-        return [
-          { name: 'Week 1', approved: Math.max(0, stats.approved - 15), pending: Math.max(0, stats.pending - 8), rejected: Math.max(0, stats.rejected - 5) },
-          { name: 'Week 2', approved: Math.max(0, stats.approved - 12), pending: Math.max(0, stats.pending - 6), rejected: Math.max(0, stats.rejected - 4) },
-          { name: 'Week 3', approved: Math.max(0, stats.approved - 8), pending: Math.max(0, stats.pending - 4), rejected: Math.max(0, stats.rejected - 2) },
-          { name: 'Week 4', approved: stats.approved, pending: stats.pending, rejected: stats.rejected }
-        ];
+  const generateChartData = () => {
+    if (!dashboardStats) return [];
+    const chartInfo = dashboardStats.chartInfo;
 
-      case '90days':
-        return [
-          { name: 'May', approved: Math.max(0, stats.approved - 25), pending: Math.max(0, stats.pending - 12), rejected: Math.max(0, stats.rejected - 8) },
-          { name: 'Jun', approved: Math.max(0, stats.approved - 18), pending: Math.max(0, stats.pending - 8), rejected: Math.max(0, stats.rejected - 5) },
-          { name: 'Jul', approved: Math.max(0, stats.approved - 10), pending: Math.max(0, stats.pending - 4), rejected: Math.max(0, stats.rejected - 2) },
-          { name: 'Aug', approved: stats.approved, pending: stats.pending, rejected: stats.rejected }
-        ];
-
-      case '6months':
-        return [
-          { name: 'Mar', approved: Math.max(0, stats.approved - 40), pending: Math.max(0, stats.pending - 20), rejected: Math.max(0, stats.rejected - 12) },
-          { name: 'Apr', approved: Math.max(0, stats.approved - 32), pending: Math.max(0, stats.pending - 16), rejected: Math.max(0, stats.rejected - 10) },
-          { name: 'May', approved: Math.max(0, stats.approved - 25), pending: Math.max(0, stats.pending - 12), rejected: Math.max(0, stats.rejected - 8) },
-          { name: 'Jun', approved: Math.max(0, stats.approved - 18), pending: Math.max(0, stats.pending - 8), rejected: Math.max(0, stats.rejected - 5) },
-          { name: 'Jul', approved: Math.max(0, stats.approved - 10), pending: Math.max(0, stats.pending - 4), rejected: Math.max(0, stats.rejected - 2) },
-          { name: 'Aug', approved: stats.approved, pending: stats.pending, rejected: stats.rejected }
-        ];
-
-      case '1year':
-        return [
-          { name: 'Q1', approved: Math.max(0, stats.approved - 60), pending: Math.max(0, stats.pending - 30), rejected: Math.max(0, stats.rejected - 18) },
-          { name: 'Q2', approved: Math.max(0, stats.approved - 35), pending: Math.max(0, stats.pending - 18), rejected: Math.max(0, stats.rejected - 10) },
-          { name: 'Q3', approved: stats.approved, pending: stats.pending, rejected: stats.rejected }
-        ];
-
-      default:
-        return [];
-    }
+    // Existing logic for filtering chart data based on period can be adapted here if needed,
+    // but for now, we'll directly use the monthly data from the API and map it.
+    // The API response for chartInfo already provides data monthly, so we'll just map it to the chart's expected format.
+    return chartInfo.map(data => ({
+      name: data.month, // The API returns 'YYYY-MM', we might want to format this for display
+      approved: data.approved,
+      pending: data.reviewing, // Assuming 'reviewing' from API maps to 'pending'
+      rejected: data.rejected,
+    }));
   };
 
-  const chartData = generateChartData(datePeriod);
+  const chartData = generateChartData();
 
-  const filteredRequests = claimRequests.filter(request => {
+  const filteredRequests = recentClaimRequests.filter(request => {
     if (activeFilter === 'all') return true;
     return request.status === activeFilter;
   });
@@ -100,16 +114,25 @@ export function Dashboard() {
   const handleApprove = async () => {
     if (!selectedRequest) return;
     
-    const request = claimRequests.find(r => r.id === selectedRequest);
+    const request = recentClaimRequests.find(r => r.id === selectedRequest);
     if (!request) return;
 
-    updateClaimRequest(selectedRequest, { status: 'approved' });
+    // Here you would typically call an API to update the status on the backend
+    // For now, we'll simulate the update and add a history log.
+    // updateClaimRequest(selectedRequest, { status: 'approved' });
     addHistoryLog({
       adminName: 'Admin User',
-      action: `Approved claim request ${request.claimNumber} for ${request.miles} miles`
+      action: `Approved claim request ${request.requestNumber} for ${request.flightInfo.milesEarn} miles`
     });
     
     toast.success('Request approved successfully');
+    // After a successful API call, you would refetch recentClaimRequests or update the state directly
+    // For now, let's update the local state for demonstration
+    setRecentClaimRequests(prevRequests => 
+      prevRequests.map(req => 
+        req.id === selectedRequest ? { ...req, status: 'approved' } : req
+      )
+    );
     setIsDialogOpen(false);
     setSelectedRequest(null);
   };
@@ -124,27 +147,36 @@ export function Dashboard() {
       return;
     }
     
-    const request = claimRequests.find(r => r.id === selectedRequest);
+    const request = recentClaimRequests.find(r => r.id === selectedRequest);
     if (!request) return;
 
-    updateClaimRequest(selectedRequest, { 
-      status: 'rejected',
-      rejectionReason: rejectionReason 
-    });
+    // Here you would typically call an API to update the status on the backend
+    // For now, we'll simulate the update and add a history log.
+    // updateClaimRequest(selectedRequest, { 
+    //   status: 'rejected',
+    //   rejectionReason: rejectionReason 
+    // });
     
     addHistoryLog({
       adminName: 'Admin User',
-      action: `Rejected claim request ${request.claimNumber} - Reason: ${rejectionReason}`
+      action: `Rejected claim request ${request.requestNumber} - Reason: ${rejectionReason}`
     });
     
     toast.success('Request rejected');
+    // After a successful API call, you would refetch recentClaimRequests or update the state directly
+    // For now, let's update the local state for demonstration
+    setRecentClaimRequests(prevRequests => 
+      prevRequests.map(req => 
+        req.id === selectedRequest ? { ...req, status: 'rejected', rejectReason: rejectionReason } : req
+      )
+    );
     setIsDialogOpen(false);
     setSelectedRequest(null);
     setRejectionReason('');
     setShowRejectionInput(false);
   };
 
-  const selectedRequestData = selectedRequest ? claimRequests.find(r => r.id === selectedRequest) : null;
+  const selectedRequestData = selectedRequest ? recentClaimRequests.find(r => r.id === selectedRequest) : null;
 
   return (
     <div className="space-y-6">
@@ -246,11 +278,7 @@ export function Dashboard() {
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="7days">Last 7 days</SelectItem>
-                  <SelectItem value="30days">Last 30 days</SelectItem>
-                  <SelectItem value="90days">Last 90 days</SelectItem>
                   <SelectItem value="6months">Last 6 months</SelectItem>
-                  <SelectItem value="1year">Last year</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -311,7 +339,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold text-gray-900">Recent Claim Requests</CardTitle>
             <div className="flex space-x-2">
-              {['all', 'pending', 'approved', 'rejected'].map((filter) => (
+              {['all', 'reviewing', 'approved', 'rejected'].map((filter) => (
                 <Button
                   key={filter}
                   variant={activeFilter === filter ? "default" : "outline"}
@@ -323,7 +351,7 @@ export function Dashboard() {
                       : "text-gray-600 hover:text-gray-900"
                   }
                 >
-                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  {filter === 'reviewing' ? 'Reviewing' : filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Button>
               ))}
             </div>
@@ -338,8 +366,8 @@ export function Dashboard() {
                     <FileText className="w-4 h-4 text-blue-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">{request.claimNumber}</div>
-                    <div className="text-sm text-gray-600">{request.memberEmail} • {request.miles} miles</div>
+                    <div className="font-medium text-gray-900">{request.requestNumber}</div>
+                    <div className="text-sm text-gray-600">{request.email} • {request.flightInfo.milesEarn} miles</div>
                   </div>
                 </div>
                 
@@ -382,19 +410,51 @@ export function Dashboard() {
               <div className="space-y-3">
                 <div>
                   <Label className="text-sm text-gray-600">Claim Number</Label>
-                  <p className="font-medium">{selectedRequestData.claimNumber}</p>
+                  <p className="font-medium">{selectedRequestData.requestNumber}</p>
                 </div>
                 
                 <div>
                   <Label className="text-sm text-gray-600">Member Email</Label>
-                  <p className="font-medium">{selectedRequestData.memberEmail}</p>
+                  <p className="font-medium">{selectedRequestData.email}</p>
                 </div>
                 
                 <div>
                   <Label className="text-sm text-gray-600">Miles Claimed</Label>
-                  <p className="font-medium">{selectedRequestData.miles} miles</p>
+                  <p className="font-medium">{selectedRequestData.flightInfo.milesEarn} miles</p>
                 </div>
                 
+                <div>
+                  <Label className="text-sm text-gray-600">Departure Date</Label>
+                  <p className="font-medium">{new Date(selectedRequestData.flightInfo.departureDate).toLocaleDateString()}</p>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-gray-600">Flight Number</Label>
+                  <p className="font-medium">{selectedRequestData.flightInfo.flightNumber}</p>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-gray-600">From</Label>
+                  <p className="font-medium">{selectedRequestData.flightInfo.from}</p>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-gray-600">To</Label>
+                  <p className="font-medium">{selectedRequestData.flightInfo.to}</p>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-gray-600">Airline</Label>
+                  <p className="font-medium">{selectedRequestData.flightInfo.airline}</p>
+                </div>
+
+                {selectedRequestData.rejectReason && (
+                  <div>
+                    <Label className="text-sm text-gray-600">Reject Reason</Label>
+                    <p className="font-medium text-red-600">{selectedRequestData.rejectReason}</p>
+                  </div>
+                )}
+
                 <div>
                   <Label className="text-sm text-gray-600">Status</Label>
                   <Badge className={
