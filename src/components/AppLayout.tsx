@@ -61,7 +61,7 @@ export function AppLayout({ children, currentPage, setCurrentPage }: AppLayoutPr
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">LotusMiles Admin</h1>
+                <h1 className="text-lg font-semibold text-gray-900">Milestones Admin</h1>
                 <div className="flex items-center text-sm text-gray-500">
                   <span>Dashboard</span>
                   <ChevronRight className="w-3 h-3 mx-1" />

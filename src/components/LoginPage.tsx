@@ -59,7 +59,7 @@ export function LoginPage() {
                 <Shield className="w-8 h-8" />
               </div>
             </div>
-            <h1 className="text-2xl font-semibold mb-2">LotusMiles Admin</h1>
+            <h1 className="text-2xl font-semibold mb-2">Milestones Admin</h1>
             <p className="text-blue-100 text-sm">
               Secure admin portal for loyalty program management
             </p>
