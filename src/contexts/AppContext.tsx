@@ -31,7 +31,7 @@ interface ClaimRequest {
   rejectionReason?: string;
 }
 
-interface Member {
+export interface Member {
   id: string;
   name: string;
   email: string;

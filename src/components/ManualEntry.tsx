@@ -1,69 +1,113 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { useAppContext } from '../contexts/AppContext';
+import { Member } from '../contexts/AppContext'; // Import Member interface
 import { toast } from "sonner";
-import { Plane, User, Mail, Calendar, CreditCard, LogIn, UserPlus, Info } from 'lucide-react';
+import { Plane, User, Mail, Calendar, LogIn, UserPlus, Info } from 'lucide-react';
 
-// Mock flight database
-const flightDatabase = {
-  'VN123': {
-    airline: 'Vietnam Airlines',
-    bookingClass: 'Business',
-    flightDate: '2025-08-10',
-    cardTier: 'Gold',
-    miles: 2500
-  },
-  'VJ456': {
-    airline: 'VietJet Air',
-    bookingClass: 'Economy',
-    flightDate: '2025-08-09',
-    cardTier: 'Silver',
-    miles: 1200
-  },
-  'QR789': {
-    airline: 'Qatar Airways',
-    bookingClass: 'First Class',
-    flightDate: '2025-08-08',
-    cardTier: 'Platinum',
-    miles: 5000
-  },
-  'SQ101': {
-    airline: 'Singapore Airlines',
-    bookingClass: 'Business',
-    flightDate: '2025-08-07',
-    cardTier: 'Platinum',
-    miles: 3500
-  },
-  'BA202': {
-    airline: 'British Airways',
-    bookingClass: 'Premium Economy',
-    flightDate: '2025-08-06',
-    cardTier: 'Gold',
-    miles: 2800
-  }
-};
+interface Flight {
+  id: number;
+  flightNumber: string;
+  departure: string;
+  arrival: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  bookingNumber: string;
+  milesEarn: number;
+  qualifyingMiles: number;
+  bonusMiles: number;
+  airline: string;
+  distance: number;
+}
 
 export function ManualEntry() {
   const { addHistoryLog, members, setMembers, checkAndAssignRewards } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [flightsData, setFlightsData] = useState<Flight[]>([]); // State to store flights data
+  const [fetchedMembers, setFetchedMembers] = useState<Member[]>([]); // State to store fetched members
+  const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(undefined); // State to store selected member ID
+
   const [formData, setFormData] = useState({
     memberEmail: '',
     memberNumber: '',
     flightNumberId: '',
     // Auto-filled fields
     airline: '',
-    bookingClass: '',
-    flightDate: '',
-    cardTier: '',
-    miles: 0
+    departure: '',
+    arrival: '',
+    startTime: '',
+    endTime: '',
+    milesEarn: 0,
+    qualifyingMiles: 0,
+    bonusMiles: 0,
+    distance: 0
   });
 
   const [isFlightFound, setIsFlightFound] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [selectedFlightId, setSelectedFlightId] = useState<number | undefined>(undefined);
+
+  const resetFormState = () => {
+    setFormData({
+      memberEmail: '',
+      memberNumber: '',
+      flightNumberId: '',
+      airline: '',
+      departure: '',
+      arrival: '',
+      startTime: '',
+      endTime: '',
+      milesEarn: 0,
+      qualifyingMiles: 0,
+      bonusMiles: 0,
+      distance: 0
+    });
+    setIsFlightFound(false);
+    setSelectedMemberId(undefined);
+    setSelectedFlightId(undefined);
+    setFlightsData([]); // Clear available flights
+  };
+
+  useEffect(() => {
+    setToken(localStorage.getItem('token'));
+  }, []);
+
+  const fetchFlightsForMember = async (memberId: string) => {
+    if (!token) {
+      toast.error('Authentication token not found.');
+      return;
+    }
+    try {
+      const flightsResponse = await fetch('https://mileswise-be.onrender.com/api/admin/members/flights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ customerId: memberId })
+      });
+      if (!flightsResponse.ok) {
+        throw new Error(`Failed to fetch flights: ${flightsResponse.statusText}`);
+      }
+      const flightsJson = await flightsResponse.json();
+      setFlightsData(flightsJson);
+    } catch (error) {
+      console.error('Error fetching flights:', error);
+      toast.error(`Error fetching flights: ${(error as Error).message}`);
+    }
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -74,43 +118,95 @@ export function ManualEntry() {
 
   // Auto-fill flight information when flight number changes
   useEffect(() => {
-    if (formData.flightNumberId.trim()) {
-      const flightInfo = flightDatabase[formData.flightNumberId.toUpperCase()];
+    if (formData.flightNumberId.trim() && flightsData.length > 0) {
+      const flightInfo = flightsData.find(flight => flight.flightNumber.toUpperCase() === formData.flightNumberId.toUpperCase());
       if (flightInfo) {
         setFormData(prev => ({
           ...prev,
           airline: flightInfo.airline,
-          bookingClass: flightInfo.bookingClass,
-          flightDate: flightInfo.flightDate,
-          cardTier: flightInfo.cardTier,
-          miles: flightInfo.miles
+          departure: flightInfo.departure,
+          arrival: flightInfo.arrival,
+          startTime: flightInfo.startTime,
+          endTime: flightInfo.endTime,
+          milesEarn: flightInfo.milesEarn,
+          qualifyingMiles: flightInfo.qualifyingMiles,
+          bonusMiles: flightInfo.bonusMiles,
+          distance: flightInfo.distance
         }));
         setIsFlightFound(true);
+        setSelectedFlightId(flightInfo.id);
       } else {
         // Clear auto-filled fields if flight not found
         setFormData(prev => ({
           ...prev,
           airline: '',
-          bookingClass: '',
-          flightDate: '',
-          cardTier: '',
-          miles: 0
+          departure: '',
+          arrival: '',
+          startTime: '',
+          endTime: '',
+          milesEarn: 0,
+          qualifyingMiles: 0,
+          bonusMiles: 0,
+          distance: 0
         }));
         setIsFlightFound(false);
+        setSelectedFlightId(undefined);
       }
     } else {
       // Clear all fields when flight number is empty
       setFormData(prev => ({
         ...prev,
         airline: '',
-        bookingClass: '',
-        flightDate: '',
-        cardTier: '',
-        miles: 0
+        departure: '',
+        arrival: '',
+        startTime: '',
+        endTime: '',
+        milesEarn: 0,
+        qualifyingMiles: 0,
+        bonusMiles: 0,
+        distance: 0
       }));
       setIsFlightFound(false);
+      setSelectedFlightId(undefined);
     }
-  }, [formData.flightNumberId]);
+  }, [formData.flightNumberId, flightsData]);
+
+  useEffect(() => {
+    if (!token) return; // Only run if token is available
+
+    const fetchMembers = async () => {
+      if (!token) {
+        toast.error('Authentication token not found.');
+        return;
+      }
+
+      // Fetch members data
+      try {
+        const membersResponse = await fetch('https://mileswise-be.onrender.com/api/admin/members', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!membersResponse.ok) {
+          throw new Error(`Failed to fetch members: ${membersResponse.statusText}`);
+        }
+
+        const membersJson = await membersResponse.json();
+        setFetchedMembers(membersJson);
+      } catch (error) {
+        console.error('Error fetching members:', error);
+        toast.error(`Error fetching members: ${(error as Error).message}`);
+      }
+    };
+
+    fetchMembers();
+
+    if (selectedMemberId) {
+      fetchFlightsForMember(selectedMemberId);
+    }
+  }, [selectedMemberId, token, selectedFlightId]); // Dependency array now includes selectedMemberId, token and selectedFlightId
 
   const getTierColor = (tier: string) => {
     switch (tier) {
@@ -123,27 +219,44 @@ export function ManualEntry() {
   };
 
   const handleConfirm = async () => {
-    if (!formData.memberEmail || !formData.memberNumber || !formData.flightNumberId || !isFlightFound) {
-      toast.error('Please fill in all required fields and ensure flight is found');
+    if (!formData.memberEmail || !formData.memberNumber || !formData.flightNumberId || !isFlightFound || !selectedMemberId || selectedFlightId === undefined) {
+      toast.error('Please fill in all required fields, ensure flight is found, and a member is selected.');
       return;
     }
 
     setIsLoading(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Find member by email and update their miles
-      const member = members.find(m => m.email.toLowerCase() === formData.memberEmail.toLowerCase());
+      const response = await fetch('https://mileswise-be.onrender.com/api/admin/earn-miles-requests/manual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          flightId: selectedFlightId,
+          customerId: selectedMemberId
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to process transaction: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      toast.success(result.message || 'Manual earn miles request created successfully.');
+
+      // Find member by email and update their miles (This part remains for UI update)
+      const member = members.find(m => m.memberId === selectedMemberId);
       
       if (member) {
-        const newQualifyingMiles = member.totalQualifyingMiles + formData.miles;
-        const newAwardMiles = member.totalAwardMiles + formData.miles;
-        
-        // Update member miles
-        setMembers(prev =>
-          prev.map(m =>
+        const flightInfo = flightsData.find(flight => flight.id === selectedFlightId);
+        if (flightInfo) {
+          const newQualifyingMiles = member.totalQualifyingMiles + flightInfo.qualifyingMiles;
+          const newAwardMiles = member.totalAwardMiles + flightInfo.milesEarn + flightInfo.bonusMiles;
+          
+          const updatedMembers = members.map((m: Member) =>
             m.id === member.id
               ? { 
                   ...m, 
@@ -151,60 +264,35 @@ export function ManualEntry() {
                   totalAwardMiles: newAwardMiles
                 }
               : m
-          )
-        );
+          );
+          setMembers(updatedMembers);
+          checkAndAssignRewards(member.id, newQualifyingMiles, newAwardMiles);
 
-        // Check for tier upgrades and auto-assign rewards
-        checkAndAssignRewards(member.id, newQualifyingMiles, newAwardMiles);
-
-        addHistoryLog({
-          adminName: 'Admin User',
-          action: `Added ${formData.miles} miles for member ${formData.memberEmail} (Flight: ${formData.flightNumberId}) - Qualifying: ${newQualifyingMiles.toLocaleString()}, Award: ${newAwardMiles.toLocaleString()}`
-        });
-
-        toast.success(`Successfully added ${formData.miles} miles for flight ${formData.flightNumberId}. New qualifying: ${newQualifyingMiles.toLocaleString()}, award: ${newAwardMiles.toLocaleString()}`);
+          addHistoryLog({
+            adminName: 'Admin User',
+            action: `Added ${flightInfo.milesEarn} miles for member ${member.email} (Flight: ${flightInfo.flightNumber}) - Qualifying: ${newQualifyingMiles.toLocaleString()}, Award: ${newAwardMiles.toLocaleString()}`
+          });
+        }
       } else {
-        // Member not found - still log the transaction but show warning
         addHistoryLog({
           adminName: 'Admin User',
-          action: `Added ${formData.miles} miles for member ${formData.memberEmail} (Flight: ${formData.flightNumberId}) - Member not found in system`
+          action: `Manual earn request for customerId: ${selectedMemberId}, flightId: ${selectedFlightId}. Member not found in local state.`
         });
-
-        toast.success(`Successfully added ${formData.miles} miles for flight ${formData.flightNumberId}. Note: Member not found in member database.`);
       }
       
       // Reset form
-      setFormData({
-        memberEmail: '',
-        memberNumber: '',
-        flightNumberId: '',
-        airline: '',
-        bookingClass: '',
-        flightDate: '',
-        cardTier: '',
-        miles: 0
-      });
-      setIsFlightFound(false);
+      resetFormState();
       
     } catch (error) {
-      toast.error('Failed to process transaction');
+      console.error('Failed to process transaction:', error);
+      toast.error(`Failed to process transaction: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData({
-      memberEmail: '',
-      memberNumber: '',
-      flightNumberId: '',
-      airline: '',
-      bookingClass: '',
-      flightDate: '',
-      cardTier: '',
-      miles: 0
-    });
-    setIsFlightFound(false);
+    resetFormState();
     toast.info('Form cleared');
   };
 
@@ -236,6 +324,40 @@ export function ManualEntry() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Select Member Dropdown */}
+            <div className="space-y-2">
+              <Label htmlFor="selectMember" className="text-sm font-medium text-gray-600">
+                Select Member
+              </Label>
+              <Select
+                value={selectedMemberId}
+                onValueChange={(value) => {
+                  setSelectedMemberId(value);
+                  const selectedMember = fetchedMembers.find(member => member.memberId === value);
+                  if (selectedMember) {
+                    setFormData(prev => ({
+                      ...prev,
+                      memberEmail: selectedMember.email,
+                      memberNumber: selectedMember.customerNumber
+                    }));
+                    fetchFlightsForMember(value); // Call to fetch flights for the selected member
+                  }
+                }}
+              >
+                <SelectTrigger className="pl-10 py-3 bg-gray-50 border-gray-200">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <SelectValue placeholder="Select a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fetchedMembers.map((member) => (
+                    <SelectItem key={member.memberId} value={member.memberId}>
+                      {member.fullName} ({member.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Member Email */}
             <div className="space-y-2">
               <Label htmlFor="memberEmail" className="text-sm font-medium text-gray-600">
@@ -301,7 +423,7 @@ export function ManualEntry() {
             <div className="space-y-4 pt-4">
               <Button 
                 onClick={handleConfirm}
-                disabled={isLoading || !formData.memberEmail || !formData.memberNumber || !formData.flightNumberId || !isFlightFound}
+                disabled={isLoading || !formData.memberEmail || !formData.memberNumber || !formData.flightNumberId || !isFlightFound || !selectedMemberId || selectedFlightId === undefined}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
               >
                 <LogIn className="w-4 h-4" />
@@ -346,35 +468,57 @@ export function ManualEntry() {
                         <span className="font-medium text-gray-900">{formData.airline}</span>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-600 block">Booking Class</span>
-                        <span className="font-medium text-gray-900">{formData.bookingClass}</span>
+                        <span className="text-sm text-gray-600 block">Departure</span>
+                        <span className="font-medium text-gray-900">{formData.departure}</span>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <span className="text-sm text-gray-600 block">Flight Date</span>
+                        <span className="text-sm text-gray-600 block">Arrival</span>
+                        <span className="font-medium text-gray-900">{formData.arrival}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 block">Start Time</span>
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <span className="font-medium text-gray-900">
-                            {new Date(formData.flightDate).toLocaleDateString()}
+                            {new Date(formData.startTime).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 block">End Time</span>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="font-medium text-gray-900">
+                            {new Date(formData.endTime).toLocaleString()}
                           </span>
                         </div>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-600 block">Card Tier</span>
-                        <Badge className={getTierColor(formData.cardTier)}>
-                          {formData.cardTier}
-                        </Badge>
+                        <span className="text-sm text-gray-600 block">Distance</span>
+                        <span className="font-medium text-gray-900">{formData.distance} km</span>
                       </div>
                     </div>
 
                     <div className="pt-4 border-t border-blue-200">
-                      <div className="text-center">
-                        <span className="text-sm text-gray-600 block mb-1">Miles to Add</span>
-                        <span className="font-bold text-green-600 text-2xl">
-                          +{formData.miles.toLocaleString()}
-                        </span>
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                          <span className="text-sm text-gray-600 block mb-1">Qualifying Miles</span>
+                          <span className="font-bold text-blue-600 text-xl">
+                            +{formData.qualifyingMiles.toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600 block mb-1">Bonus Miles</span>
+                          <span className="font-bold text-purple-600 text-xl">
+                            +{formData.bonusMiles.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -395,26 +539,26 @@ export function ManualEntry() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2 text-gray-900">
                 <Info className="w-5 h-5 text-blue-600" />
-                <span>Available Test Flights</span>
+                <span>Available Flights</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600 mb-4">
-                Use these flight numbers for testing the system:
+                Use these flight numbers to process
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(flightDatabase).map(([flightId, info]) => (
-                  <div key={flightId} className="p-3 bg-gray-50 rounded-lg">
+                {flightsData.map((flight) => (
+                  <div key={flight.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-1">
                       <code className="font-mono text-sm font-medium text-blue-600">
-                        {flightId}
+                        {flight.flightNumber}
                       </code>
-                      <Badge className={getTierColor(info.cardTier)} size="sm">
-                        {info.cardTier}
+                      <Badge className={getTierColor(flight.status === 'completed' ? 'Gold' : 'Silver')}>
+                        {flight.status}
                       </Badge>
                     </div>
                     <div className="text-xs text-gray-600">
-                      {info.airline} • {info.miles} miles
+                      {flight.airline} • {flight.milesEarn} miles
                     </div>
                   </div>
                 ))}
