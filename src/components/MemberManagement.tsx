@@ -301,10 +301,6 @@ export function MemberManagement() {
         
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Member
-            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
