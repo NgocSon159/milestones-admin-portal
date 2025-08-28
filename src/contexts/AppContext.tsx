@@ -67,22 +67,21 @@ interface Reward {
   membershipName: string;
 }
 
-interface TierConfig {
+export interface TierConfig {
   id: string;
-  name: 'silver' | 'gold' | 'platinum' | 'diamond';
+  name: string;
   displayName: string;
-  color: string;
-  bgColor: string;
-  textColor: string; 
+  color: string; // Tailwind CSS class
+  hexColor?: string; // Hex color from API
   milesRequired: number;
   description: string;
   benefits: string[];
-  autoRewards: string[];
+  autoRewards?: string[];
   status: 'active' | 'inactive';
   createdDate: string;
-  memberCount: number;
-  maxRewardsPerMonth: number;
-  tierBonus: number;
+  memberCount?: number;
+  maxRewardsPerMonth?: number;
+  tierBonus?: number;
 }
 
 interface AppContextType {
@@ -329,20 +328,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Map API response to TierConfig structure
       const mappedTiers: TierConfig[] = data.map((membership: any) => ({
         id: membership.id,
-        name: membership.name.toLowerCase(), // Assuming tier name should be lowercase for internal use
+        name: membership.name, 
         displayName: membership.name,
-        color: '', // To be determined or remove if not used
-        bgColor: '', // To be determined or remove if not used
-        textColor: '', // To be determined or remove if not used
+        color: '', // Will be set by getTailwindColorClass in TierConfig.tsx
+        hexColor: membership.color, // Assuming color is a hex string from API
         milesRequired: membership.milesRequired,
         description: membership.description,
-        benefits: [membership.benefit], // Assuming benefit is a single string
-        autoRewards: [], // To be determined
+        benefits: membership.benefit ? [membership.benefit] : [], // Convert single benefit string to array
+        autoRewards: membership.autoAssignReward ? [membership.autoAssignReward] : [], // Assuming autoAssignReward is a single reward ID
         status: 'active', // Assuming all fetched memberships are active
-        createdDate: membership.createdAt.split('T')[0],
+        createdDate: membership.createdAt ? membership.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
         memberCount: 0, // API response doesn't have memberCount, default to 0
-        maxRewardsPerMonth: 0, // To be determined
-        tierBonus: 0, // To be determined
+        maxRewardsPerMonth: 0, // Default value
+        tierBonus: 0, // Default value
       }));
       setTiers(mappedTiers);
     } catch (error) {
@@ -449,7 +447,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Auto-assign rewards for this tier
       const autoRewards = rewards.filter(reward => 
-        newTier.autoRewards.includes(reward.id) && 
+        newTier.autoRewards?.includes(reward.id) && 
         reward.status === 'active'
       );
 

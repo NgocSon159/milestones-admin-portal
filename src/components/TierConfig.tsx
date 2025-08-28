@@ -7,7 +7,6 @@ import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Switch } from './ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useAppContext } from '../contexts/AppContext';
 import { 
   Settings, 
@@ -15,29 +14,38 @@ import {
   Edit, 
   Trash2, 
   Crown, 
-  Award,
-  Users,
-  TrendingUp
 } from 'lucide-react';
 import { toast } from "sonner";
+import { TierConfig as AppTierConfig } from '../contexts/AppContext';
+
+const getTailwindColorClass = (hexColor: string | undefined): string => {
+  if (!hexColor) return 'bg-gray-100 text-gray-800'; // Default color
+
+  // Convert hex to RGB
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  // Basic logic to determine a suitable Tailwind class
+  // This is a simplified approach, a more robust solution might use a color library
+  if (r > 200 && g > 200) return 'bg-yellow-100 text-yellow-800';
+  if (r > 200 && b > 200) return 'bg-purple-100 text-purple-800';
+  if (g > 200 && b > 200) return 'bg-emerald-100 text-emerald-800';
+  if (r > 200) return 'bg-red-100 text-red-800';
+  if (g > 200) return 'bg-green-100 text-green-800';
+  if (b > 200) return 'bg-blue-100 text-blue-800';
+  
+  return 'bg-gray-100 text-gray-800'; // Default fallback
+};
 
 interface TierFormData {
   name: string;
   displayName: string;
-  color: string;
+  color: string; // This will now be the hex color
   milesRequired: number;
   description: string;
   benefits: string[];
 }
-
-const tierColors = [
-  { value: 'bg-amber-100 text-amber-800', label: 'Bronze', preview: 'bg-amber-100' },
-  { value: 'bg-gray-100 text-gray-800', label: 'Silver', preview: 'bg-gray-200' },
-  { value: 'bg-yellow-100 text-yellow-800', label: 'Gold', preview: 'bg-yellow-200' },
-  { value: 'bg-purple-100 text-purple-800', label: 'Platinum', preview: 'bg-purple-200' },
-  { value: 'bg-blue-100 text-blue-800', label: 'Diamond', preview: 'bg-blue-200' },
-  { value: 'bg-emerald-100 text-emerald-800', label: 'Emerald', preview: 'bg-emerald-200' },
-];
 
 export function TierConfig() {
   const { tiers, addTier, updateTier, deleteTier, addHistoryLog } = useAppContext();
@@ -50,7 +58,7 @@ export function TierConfig() {
   const [formData, setFormData] = useState<TierFormData>({
     name: '',
     displayName: '',
-    color: 'bg-gray-100 text-gray-800',
+    color: '#CD7F32', // Default to a hex color
     milesRequired: 0,
     description: '',
     benefits: []
@@ -60,7 +68,7 @@ export function TierConfig() {
     setFormData({
       name: '',
       displayName: '',
-      color: 'bg-gray-100 text-gray-800',
+      color: '#CD7F32', // Default to a hex color
       milesRequired: 0,
       description: '',
       benefits: []
@@ -109,6 +117,7 @@ export function TierConfig() {
         updateTier(editingTier, {
           ...formData,
           name: formData.name.toLowerCase(),
+          hexColor: formData.color, // Pass the hex color
           status: 'active',
           autoRewards: []
         });
@@ -121,6 +130,7 @@ export function TierConfig() {
         addTier({
           ...formData,
           name: formData.name.toLowerCase(),
+          hexColor: formData.color, // Pass the hex color
           status: 'active',
           autoRewards: []
         });
@@ -144,10 +154,10 @@ export function TierConfig() {
     setFormData({
       name: tier.name,
       displayName: tier.displayName,
-      color: tier.color,
+      color: tier.hexColor || '#CD7F32', // Use hexColor from API, default if not present
       milesRequired: tier.milesRequired,
       description: tier.description,
-      benefits: tier.benefits
+      benefits: tier.benefits || []
     });
     setEditingTier(tier.id);
     setIsDialogOpen(true);
@@ -183,20 +193,8 @@ export function TierConfig() {
     return tier.status === activeFilter;
   }).sort((a, b) => a.milesRequired - b.milesRequired);
 
-  const getColorPreview = (colorClass: string) => {
-    const colorConfig = tierColors.find(tc => tc.value === colorClass);
-    return colorConfig?.preview || 'bg-gray-200';
-  };
-
-  // Statistics
-  const stats = {
-    totalTiers: tiers.length,
-    activeTiers: tiers.filter(t => t.status === 'active').length,
-    totalMembers: tiers.reduce((sum, t) => sum + t.memberCount, 0),
-    highestTier: tiers.reduce((highest, tier) => 
-      tier.milesRequired > highest.milesRequired ? tier : highest, 
-      tiers[0]
-    )
+  const getColorPreview = (tier: AppTierConfig) => {
+    return getTailwindColorClass(tier.hexColor);
   };
 
   return (
@@ -215,13 +213,6 @@ export function TierConfig() {
           </div>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Tier
-              </Button>
-            </DialogTrigger>
-            
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -255,24 +246,11 @@ export function TierConfig() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tier Color</Label>
-                    <Select
+                    <Input
+                      type="color"
                       value={formData.color}
-                      onValueChange={(value) => handleInputChange('color', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tierColors.map(color => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-3">
-                              <div className={`w-4 h-4 rounded-full ${color.preview}`}></div>
-                              {color.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(e) => handleInputChange('color', e.target.value)}
+                    />
                   </div>
                   
                   <div className="space-y-2">
@@ -353,67 +331,6 @@ export function TierConfig() {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white shadow-sm border border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <Crown className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Tiers</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.totalTiers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white shadow-sm border border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <div className="bg-green-100 p-2 rounded-lg">
-                <Award className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Active Tiers</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.activeTiers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white shadow-sm border border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <div className="bg-purple-100 p-2 rounded-lg">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Members</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.totalMembers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white shadow-sm border border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <div className="bg-yellow-100 p-2 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Highest Tier</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {stats.highestTier?.milesRequired.toLocaleString() || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Tiers List */}
       <Card className="bg-white shadow-sm border border-gray-200">
         <CardHeader>
@@ -443,11 +360,16 @@ export function TierConfig() {
             {filteredTiers.map((tier) => (
               <div key={tier.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
                 <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-8 rounded ${getColorPreview(tier.color)}`}></div>
+                  <div className={`w-3 h-8 rounded ${getColorPreview(tier)}`}></div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="font-medium text-gray-900">{tier.displayName}</h3>
-                      <Badge className={tier.color}>
+                      {tier.hexColor && (
+                        <Badge style={{ backgroundColor: tier.hexColor, color: 'white' }}>
+                          {tier.hexColor}
+                        </Badge>
+                      )}
+                      <Badge className={getColorPreview(tier)}>
                         {tier.milesRequired.toLocaleString()} miles
                       </Badge>
                       <Badge className={tier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
