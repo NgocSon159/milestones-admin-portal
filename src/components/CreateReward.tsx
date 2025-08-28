@@ -18,7 +18,7 @@ interface RewardFormData {
   rewardType: 'voucher' | 'cashback' | 'gift' | 'discount';
   value: number;
   description: string;
-  milesCost: number;
+  milesCost?: number;
   validityStart: string;
   validityEnd: string;
   conditions: string;
@@ -90,8 +90,8 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
       errors.value = 'Value must be greater than 0';
     }
 
-    if (formData.milesCost <= 0) {
-      errors.milesCost = 'Miles required must be greater than 0';
+    if (formData.milesCost !== undefined && formData.milesCost < 0) {
+      errors.milesCost = 'Miles required must be greater than or equal to 0';
     }
 
     if (!formData.validityStart) {
@@ -319,13 +319,13 @@ export function CreateReward({ onNavigate }: CreateRewardProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="milesCost">Miles Required *</Label>
+                  <Label htmlFor="milesCost">Miles Required</Label>
                   <Input
                     id="milesCost"
                     type="number"
                     placeholder="Miles needed"
-                    value={formData.milesCost}
-                    onChange={(e) => handleInputChange('milesCost', parseInt(e.target.value) || 0)}
+                    value={formData.milesCost === undefined ? '' : formData.milesCost}
+                    onChange={(e) => handleInputChange('milesCost', e.target.value ? parseInt(e.target.value) : undefined)}
                     className={formErrors.milesCost ? 'border-red-500' : ''}
                   />
                   {formErrors.milesCost && <p className="text-sm text-red-600">{formErrors.milesCost}</p>}
