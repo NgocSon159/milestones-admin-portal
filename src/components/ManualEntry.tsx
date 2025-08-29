@@ -245,6 +245,20 @@ export function ManualEntry() {
       }
 
       const result = await response.json();
+      const selectedRequest = result?.request.requestNumber
+      if (selectedRequest) {
+        await fetch(`https://mileswise-be.onrender.com/api/admin/earn-miles-requests/${selectedRequest}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: 'approved' }),
+          }
+        );
+      }
+
       toast.success(result.message || 'Manual earn miles request created successfully.');
 
       // Find member by email and update their miles (This part remains for UI update)
