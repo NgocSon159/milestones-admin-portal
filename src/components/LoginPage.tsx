@@ -116,15 +116,6 @@ export function LoginPage() {
               </Button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="text-sm text-blue-900 font-medium mb-2">Demo Credentials:</div>
-              <div className="text-sm text-blue-700 space-y-1">
-                <div>Username: <code className="bg-blue-100 px-1 rounded">admin@example.com</code></div>
-                <div>Password: <code className="bg-blue-100 px-1 rounded">adminpassword</code></div>
-              </div>
-            </div>
-
             {/* Footer Links */}
             <div className="flex justify-center space-x-4 text-xs text-gray-500 mt-6">
               <span>Terms of Service</span>
